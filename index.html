@@ -8,20 +8,25 @@
     <!-- Load the Google Maps API. -->
     <script src="https://maps.google.com/maps/api/js?sensor=false"></script>
 
-    <!-- Load jQuery, a 3rd-party library. -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
-
     <!-- Load our script. -->
-    <script src="/script.js"></script>
+    <script src="/static/script.js"></script>
 
     <!-- Load our styles. -->
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/static/style.css">
   </head>
   <body>
     <h1>SMOKE Policy Web Tool</h1>
 
-    <div class="map"></div>
+    <!-- The element into which we render the Google Map. -->
+    <div id="map" style="width: 100%; height: 480px;"></div>
 
-    <div class="tiles-loading"></div>
+    <!-- Boot application once the body loads. -->
+    <script>
+      /**
+       * Get mapid and token for map tiles
+       */
+      initialize('{{ mapid }}', '{{ token }}');
+    </script>
+
   </body>
 </html>

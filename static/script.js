@@ -1,14 +1,14 @@
-// Wrap our code in a self-executing anonymous function to isolate scope.
-(function() {
+// Initialize the Google Map and add our custom layer overlay.
+var initialize = function(mapId, token) {
+  var myLatLng = new google.maps.LatLng(1.3521, 113.8193);
+  var mapOptions = {
+    center: myLatLng,
+    zoom: 5,
+    maxZoom: 10,
+    streetViewControl: false
+  };
 
-  // Our Google map.
-  var map;
-
-  $(document).ready(function() {
-    // Create the base Google Map.
-    map = new google.maps.Map($('.map').get(0), {
-          center: { lat: 1.3521, lng: 110.8193},
-          zoom: 5
-        });
-  });
-})();
+  // Create the base Google Map.
+  var map = new google.maps.Map(
+      document.getElementById('map'), mapOptions);
+};
