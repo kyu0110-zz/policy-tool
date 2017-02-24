@@ -1,0 +1,12 @@
+body {
+  /* Use the Roboto font that is loaded in the <head> */
+  font-family: 'Roboto', sans-serif;
+}
+.hidden {
+  display: none;
+}
+.map {
+  width: 640px;
+  height: 480px;
+  margin-bottom: 10px;
+}
