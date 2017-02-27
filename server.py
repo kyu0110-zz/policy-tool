@@ -1,39 +1,97 @@
 #!/usr/bin/env python
-"""A simple example of connecting to Earth Engine using App Engine."""
+""" Web server
 
+Code runs on Google App Engine. Sends requests to GAE when page loads and 
+based on user clicks. Info from GAE is then passed to browser to be executed by
+javascript. Uses Jinja2 templating engine to pass info to browser. 
+"""
 
-
-# Works in the local development environment and when deployed.
-# If successful, shows a single web page with the SRTM DEM
-# displayed in a Google Map.  See accompanying README file for
-# instructions on how to set up authentication.
-
+import json
 import os
 
 import config
-import ee
-import jinja2
+import ee               # earth engine API
+import jinja2           # templating engine
 import webapp2
 
-jinja_environment = jinja2.Environment(
-    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
+from google.appengine.api import memcache 
 
 
-class MainPage(webapp2.RequestHandler):
+###############################################################################
+#                             Web request handlers.                           #
+###############################################################################
 
-  def get(self):                             # pylint: disable=g-bad-name
-    """Request an image from Earth Engine and render it to a web page."""
-    ee.Initialize(config.EE_CREDENTIALS)
-    mapid = ee.Image('srtm90_v4').getMapId({'min': 0, 'max': 1000})
 
-    # These could be put directly into template.render, but it
-    # helps make the script more readable to pull them out here, especially
-    # if this is expanded to include more variables.
+class MainHandler(webapp2.RequestHandler):
+  """A servlet to handle requests to load the main web page."""
+
+  def get(self, path=''):
+    """Returns the main web page, populated with EE map."""
+    mapid = GetMainMapId()
     template_values = {
-        'mapid': mapid['mapid'],
-        'token': mapid['token']
+        'eeMapId': mapid['mapid'],
+        'eeToken': mapid['token']
     }
-    template = jinja_environment.get_template('index.html')
+    template = JINJA2_ENVIRONMENT.get_template('index.html')
     self.response.out.write(template.render(template_values))
 
-app = webapp2.WSGIApplication([('/', MainPage)], debug=True)
+
+# Define webapp2 routing from URL paths to web request handlers. See:
+# http://webapp-improved.appspot.com/tutorials/quickstart.html
+app = webapp2.WSGIApplication([
+    ('/', MainHandler)
+])
+
+
+###############################################################################
+#                                   Helpers.                                  #
+###############################################################################
+
+
+def GetMainMapId():
+  """Returns the MapID for the night-time lights trend map."""
+  collection = ee.ImageCollection(IMAGE_COLLECTION_ID).select('population-density')
+
+  reference = collection.filterDate('2000-01-01', '2017-01-01').sort('system:time_start', False)
+  mean = reference.mean()
+
+  return mean.getMapId({
+      'min': '0',
+      'max': '500',
+      'bands': 'population-density',
+      'format': 'png',
+      'palette': 'FFFFFF, 220066',
+      })
+
+###############################################################################
+#                                   Constants.                                #
+###############################################################################
+
+
+# Memcache is used to avoid exceeding our EE quota. Entries in the cache expire
+# 24 hours after they are added. See:
+# https://cloud.google.com/appengine/docs/python/memcache/
+MEMCACHE_EXPIRATION = 60 * 60 * 24
+
+# The ImageCollection of the night-time lights dataset. See:
+# https://earthengine.google.org/#detail/NOAA%2FDMSP-OLS%2FNIGHTTIME_LIGHTS
+IMAGE_COLLECTION_ID = 'CIESIN/GPWv4/unwpp-adjusted-population-density'
+
+###############################################################################
+#                               Initialization.                               #
+###############################################################################
+
+
+# Use our App Engine service account's credentials.
+EE_CREDENTIALS = ee.ServiceAccountCredentials(
+    config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE)
+
+# Create the Jinja templating system we use to dynamically generate HTML. See:
+# http://jinja.pocoo.org/docs/dev/
+JINJA2_ENVIRONMENT = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)),
+    autoescape=True,
+    extensions=['jinja2.ext.autoescape'])
+
+# Initialize the EE API.
+ee.Initialize(EE_CREDENTIALS)
