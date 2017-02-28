@@ -27,7 +27,9 @@ class MainHandler(webapp2.RequestHandler):
 
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
-    mapid = GetMainMapId()
+    mapid = GetYearMapId('2000')
+    #mapid = GetMainMapId()
+    print(mapid)
     template_values = {
         'eeMapId': mapid['mapid'],
         'eeToken': mapid['token']
@@ -36,32 +38,56 @@ class MainHandler(webapp2.RequestHandler):
     self.response.out.write(template.render(template_values))
 
 
+#class DetailsHandler(webapp2.RequestHandler):
+#    """A servlet to handle requests from UI."""
+#
+#    def get(self):
+#        """Returns population density for a different year."""
+
 # Define webapp2 routing from URL paths to web request handlers. See:
 # http://webapp-improved.appspot.com/tutorials/quickstart.html
 app = webapp2.WSGIApplication([
+#    ('/details', DetailsHandler),
     ('/', MainHandler)
 ])
 
 
+        
 ###############################################################################
 #                                   Helpers.                                  #
 ###############################################################################
 
 
 def GetMainMapId():
-  """Returns the MapID for the night-time lights trend map."""
+  """Returns the MapID for the population density for mean over entire dataset."""
   collection = ee.ImageCollection(IMAGE_COLLECTION_ID).select('population-density')
 
   reference = collection.filterDate('2000-01-01', '2017-01-01').sort('system:time_start', False)
-  mean = reference.mean()
+  #year = reference.first()
 
-  return mean.getMapId({
+    #mean = reference.mean()
+
+  return reference.getMapId({
       'min': '0',
       'max': '500',
       'bands': 'population-density',
       'format': 'png',
       'palette': 'FFFFFF, 220066',
       })
+
+
+def GetYearMapId(year):
+    """Returns image for a particular year."""
+    img = ee.Image(IMAGE_COLLECTION_ID + '/' + year).select('population-density')
+
+    return img.getMapId({
+        'min': '0',
+        'max': '500',
+        'bands': 'population-density',
+        'format': 'png',
+        'palette': 'FFFFFF, 220066',
+        })
+
 
 ###############################################################################
 #                                   Constants.                                #

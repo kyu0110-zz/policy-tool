@@ -19,7 +19,10 @@ smoke.boot = function(eeMapId, eeToken) {
   // Load external libraries.
   google.load('visualization', '1.0');
   google.load('jquery', '1');
-  google.load('maps', '3');
+  google.load('maps', '3', {
+      other_params: 'key=AIzaSyA2nsOVX-475AWtyU0xVIIj9wZKPIzQinI',
+      callback: function(){}
+  });
 
   // Create the Trendy Lights app.
   google.setOnLoadCallback(function() {
@@ -47,6 +50,9 @@ smoke.App = function(mapType) {
   // Create and display the map.
   this.map = this.createMap(mapType);
 
+  // add menu to the map
+  //this.addMenu();
+
 };
 
 
@@ -71,6 +77,14 @@ smoke.App.prototype.createMap = function(mapType) {
   return map;
 };
 
+
+/** 
+ * Adds a menu to the left side
+ */
+//smoke.App.prototype.addMenu = function() {
+//    var button = ui.Button('Click me!');
+//    print(button);
+//};
 
 ///////////////////////////////////////////////////////////////////////////////
 //                        Static helpers and constants.                      //
