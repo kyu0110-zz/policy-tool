@@ -38,16 +38,23 @@ class MainHandler(webapp2.RequestHandler):
     self.response.out.write(template.render(template_values))
 
 
-#class DetailsHandler(webapp2.RequestHandler):
-#    """A servlet to handle requests from UI."""
-#
-#    def get(self):
-#        """Returns population density for a different year."""
+class DetailsHandler(webapp2.RequestHandler):
+    """A servlet to handle requests from UI."""
+
+    def get(self):
+        """Returns ui."""
+        if self.request.get('rectangle'):
+            coords = [float(i) for i in self.request.get('rectangle').split(',')]
+            geometry = ee.FeatureCollection([ee.Feature(
+                ee.Geometry.Rectangle(coords=coords), {'system:index': '0'}
+            )])
+        #label = ui.Button('Click me!')
+        #slider = ui.Slider()
 
 # Define webapp2 routing from URL paths to web request handlers. See:
 # http://webapp-improved.appspot.com/tutorials/quickstart.html
 app = webapp2.WSGIApplication([
-#    ('/details', DetailsHandler),
+    ('/details', DetailsHandler),
     ('/', MainHandler)
 ])
 

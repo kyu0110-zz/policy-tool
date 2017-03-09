@@ -20,7 +20,7 @@ smoke.boot = function(eeMapId, eeToken) {
   google.load('visualization', '1.0');
   google.load('jquery', '1');
   google.load('maps', '3', {
-      other_params: 'key=AIzaSyA2nsOVX-475AWtyU0xVIIj9wZKPIzQinI',
+      other_params: 'key=AIzaSyA2nsOVX-475AWtyU0xVIIj9wZKPIzQinI&libraries=drawing',
       callback: function(){}
   });
 
@@ -51,7 +51,7 @@ smoke.App = function(mapType) {
   this.map = this.createMap(mapType);
 
   // add menu to the map
-  //this.addMenu();
+  this.addUI(this.map);
 
 };
 
@@ -71,6 +71,7 @@ smoke.App.prototype.createMap = function(mapType) {
   };
   var mapEl = $('.map').get(0);
   var map = new google.maps.Map(mapEl, mapOptions);
+
   map.setOptions({styles: smoke.App.BLACK_BASE_MAP_STYLES});
   mapType.setOpacity(0.3);
   map.overlayMapTypes.push(mapType);
@@ -81,10 +82,22 @@ smoke.App.prototype.createMap = function(mapType) {
 /** 
  * Adds a menu to the left side
  */
-//smoke.App.prototype.addMenu = function() {
-//    var button = ui.Button('Click me!');
-//    print(button);
-//};
+smoke.App.prototype.addUI = function(map) {
+    var drawingManager = new google.maps.drawing.DrawingManager({
+    drawingMode: google.maps.drawing.OverlayType.RECTANGLE,
+    drawingControl: true
+  });
+  drawingManager.setMap(map);
+
+   var rectangle = null;
+
+   google.maps.event.addListener(
+           drawingManager, 'overlaycomplete', function(event) {
+               rectangle = event.overlay;
+               drawingManager.setOptions({drawingMode: null});
+           });
+
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 //                        Static helpers and constants.                      //
