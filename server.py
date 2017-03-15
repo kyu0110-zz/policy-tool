@@ -27,7 +27,7 @@ class MainHandler(webapp2.RequestHandler):
 
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
-    mapid = GetYearMapId('2000')
+    mapid = getSensitivity('Malaysia')
     #mapid = GetMainMapId()
     print(mapid)
     template_values = {
@@ -38,25 +38,45 @@ class MainHandler(webapp2.RequestHandler):
     self.response.out.write(template.render(template_values))
 
 
+
+
 class DetailsHandler(webapp2.RequestHandler):
     """A servlet to handle requests from UI."""
 
     def get(self):
-        """Returns ui."""
-        if self.request.get('rectangle'):
-            coords = [float(i) for i in self.request.get('rectangle').split(',')]
-            geometry = ee.FeatureCollection([ee.Feature(
-                ee.Geometry.Rectangle(coords=coords), {'system:index': '0'}
-            )])
+        receptor = self.request.get('receptor')
+        print 'Receptor = ' + receptor
+        if receptor in RECEPTORS:
+            content = getSensitivity(receptor)
+        else:
+            content = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
+
+        print(content)
+
+        ## Make new map 
+        template_values = {
+            'eeMapId': content['mapid'],
+            'eeToken': content['token']
+        }
+        print template_values
+        self.response.out.write(json.dumps(template_values))
+        #self.response.headers['Content-Type'] = 'application/json'
+        #self.response.out.write(content)
+
+        #if self.request.get('rectangle'):
+        #    coords = [float(i) for i in self.request.get('rectangle').split(',')]
+        #    geometry = ee.FeatureCollection([ee.Feature(
+        #        ee.Geometry.Rectangle(coords=coords), {'system:index': '0'}
+        #    )])
         #label = ui.Button('Click me!')
         #slider = ui.Slider()
 
 # Define webapp2 routing from URL paths to web request handlers. See:
 # http://webapp-improved.appspot.com/tutorials/quickstart.html
 app = webapp2.WSGIApplication([
-    ('/details', DetailsHandler),
-    ('/', MainHandler)
-])
+    ('/', MainHandler),
+    ('/details', DetailsHandler)
+], debug=True)
 
 
         
@@ -83,17 +103,64 @@ def GetMainMapId():
       })
 
 
-def GetYearMapId(year):
-    """Returns image for a particular year."""
-    img = ee.Image(IMAGE_COLLECTION_ID + '/' + year).select('population-density')
+def getSensitivity(receptor):
+    """Returns adjoint sensitivity."""
+    img = ee.Image('users/karenyu/'+receptor+'/20090101_hydrophilic').select('b1')
 
     return img.getMapId({
+        'min': '0',
+        'max': '0.001',
+        'bands': 'b1',
+        'format': 'png',
+        'palette': 'FFFFFF, 220066',
+        })
+
+
+def getPopulationDensity(year):
+    img = ee.Image(IMAGE_COLLECTION_ID + '/' + year).select('population-density')
+
+    return reference.getMapId({
         'min': '0',
         'max': '500',
         'bands': 'population-density',
         'format': 'png',
         'palette': 'FFFFFF, 220066',
         })
+
+
+def compute_IAV(emissions):
+    """Get interannaual variability from GFED4 emissions."""
+
+    return 0
+
+
+def compute_exposure(emissions_philic, emissions_phobic, sensitivity):
+    """Computes the PM2.5 exposure given emissions and sensitivity"""
+
+    for d in range(0,num_days):
+        # if last day
+        if d == num_days - 1:
+            prev_sensitivity_philic = 0 #read data
+            prev_sensitivity_phobic = 0 #read data
+            daily_sensitivity_philic = prev_sensitivity_philic
+            daily_sensitivity_phobic = prev_sensitivity_phobic
+        else:
+            prev_sensitivity_philic = 0#read data
+            prev_sensitiity_phobic = 0#read data
+            pres_sensitivity_philic = 0#read data
+            pres_sensitivity_phobic = 0#read data
+            daily_sensitivity_philic = prev_sensitivity_philic - pres_sensitivity_philic
+            daily_sensitivity_phobic = prev_sensitivity_phobic - pres_sensitivity_phobic
+
+        # calculate daily contribution as sensitivity * emissions
+        cost_function[:,:,n] = cost_function[:,:,n] + daily_sensitivity_philic * emissions_philic
+        cost_function[:,:,n] = cost_function[:,:,n] + daily_sensitivity_phobic * emissions_phobic
+
+    # sum up daily for monthly
+    return np.sum(cost_function, axis=2)
+
+
+
 
 
 ###############################################################################
@@ -108,7 +175,18 @@ MEMCACHE_EXPIRATION = 60 * 60 * 24
 
 # The ImageCollection of the night-time lights dataset. See:
 # https://earthengine.google.org/#detail/NOAA%2FDMSP-OLS%2FNIGHTTIME_LIGHTS
-IMAGE_COLLECTION_ID = 'CIESIN/GPWv4/unwpp-adjusted-population-density'
+IMAGE_COLLECTION_ID = 'users/karenyu/philic'
+#IMAGE_COLLECTION_ID = 'CIESIN/GPWv4/unwpp-adjusted-population-density'
+
+
+# Receptor sites
+RECEPTORS = ['Singapore', 'Malaysia', 'Indonesia', 'Population_weighted_SEAsia']
+DEFAULT_RECEPTOR = 'Population_weighted_SEAsia'
+
+# CHOOSE YEAR
+SENS_YEAR = 2009
+
+AVERAGE_EXP = 1
 
 ###############################################################################
 #                               Initialization.                               #

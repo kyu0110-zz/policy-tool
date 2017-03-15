@@ -46,12 +46,16 @@ smoke.boot = function(eeMapId, eeToken) {
  *     For example ['poland', 'moldova'].
  * @constructor
  */
-smoke.App = function(mapType) {
+smoke.App = function(mapType, eeMapId, eeToken) {
   // Create and display the map.
   this.map = this.createMap(mapType);
 
+  this.getReceptor(this.map, eeMapId, eeToken); 
+
+  // Register a click handler 
+  //var controlUI = 
   // add menu to the map
-  this.addUI(this.map);
+  //this.addUI(this.map);
 
 };
 
@@ -125,6 +129,27 @@ smoke.App.getEeMapType = function(eeMapId, eeToken) {
   return new google.maps.ImageMapType(eeMapOptions);
 };
 
+smoke.App.prototype.getReceptor = function(map) {
+  $('#get').click(function() {
+    $.getJSON(
+      '/details',
+      {
+         receptor: $('#receptor').val()
+      },
+      function(data) {
+        // clear old map layers
+        map.overlayMapTypes.clear();
+
+        // Get new maptype
+        var mapType = smoke.App.getEeMapType(data.eeMapId, data.eeToken);
+      
+        console.info(data.eeMapId) 
+        // Overlap new map
+        mapType.setOpacity(0.3);
+        map.overlayMapTypes.push(mapType);
+    });
+  });
+};
 
 /** @type {string} The Earth Engine API URL. */
 smoke.App.EE_URL = 'https://earthengine.googleapis.com';
