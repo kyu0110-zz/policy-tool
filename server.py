@@ -27,7 +27,7 @@ class MainHandler(webapp2.RequestHandler):
 
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
-    mapid = getSensitivity('Malaysia')
+    mapid = getSensitivity('Malaysia', 2009)
     #mapid = GetMainMapId()
     print(mapid)
     template_values = {
@@ -45,9 +45,14 @@ class DetailsHandler(webapp2.RequestHandler):
 
     def get(self):
         receptor = self.request.get('receptor')
+        metYear = self.request.get('metYear')
+        emissYear = self.request.get('emissYear')
+
         print 'Receptor = ' + receptor
+        print 'Met year = ' + metYear
+        print 'Emissions year = ' + emissYear
         if receptor in RECEPTORS:
-            content = getSensitivity(receptor)
+            content = getSensitivity(receptor, metYear)
         else:
             content = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
 
@@ -103,9 +108,9 @@ def GetMainMapId():
       })
 
 
-def getSensitivity(receptor):
+def getSensitivity(receptor, year):
     """Returns adjoint sensitivity."""
-    img = ee.Image('users/karenyu/'+receptor+'/20090101_hydrophilic').select('b1')
+    img = ee.Image('users/karenyu/'+receptor+'/'+str(year)+'0101_hydrophilic').select('b1')
 
     return img.getMapId({
         'min': '0',

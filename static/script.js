@@ -134,7 +134,9 @@ smoke.App.prototype.getReceptor = function(map) {
     $.getJSON(
       '/details',
       {
-         receptor: $('#receptor').val()
+         receptor: $('#receptor').val(),
+         metYear: $('#metYear').val(),
+         emissYear: $('#emissYear').val()
       },
       function(data) {
         // clear old map layers
