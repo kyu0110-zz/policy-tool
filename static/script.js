@@ -52,6 +52,8 @@ smoke.App = function(mapType, eeMapId, eeToken) {
 
   this.getReceptor(this.map, eeMapId, eeToken); 
 
+  //this.getTotal();
+
   // Register a click handler 
   //var controlUI = 
   // add menu to the map
@@ -77,7 +79,7 @@ smoke.App.prototype.createMap = function(mapType) {
   var map = new google.maps.Map(mapEl, mapOptions);
 
   map.setOptions({styles: smoke.App.BLACK_BASE_MAP_STYLES});
-  mapType.setOpacity(0.3);
+  mapType.setOpacity(0.4);
   map.overlayMapTypes.push(mapType);
   return map;
 };

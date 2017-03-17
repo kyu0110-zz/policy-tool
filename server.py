@@ -27,7 +27,7 @@ class MainHandler(webapp2.RequestHandler):
 
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
-    mapid = getSensitivity('Malaysia', 2009)
+    mapid = getSensitivity('Malaysia', 2008)
     #mapid = GetMainMapId()
     print(mapid)
     template_values = {
@@ -110,16 +110,40 @@ def GetMainMapId():
 
 def getSensitivity(receptor, year):
     """Returns adjoint sensitivity."""
-    img = ee.Image('users/karenyu/'+receptor+'/'+str(year)+'0101_hydrophilic').select('b1')
+    sensitivities = ee.ImageCollection('users/karenyu/'+receptor+'_sensitivities').sort('system:time_start', False).toList(31)
 
-    return img.getMapId({
+    # get emissions
+    emiss = ee.Image('users/karenyu/placeholder_emissions')
+
+    # iterate over sensitivity files
+    sensitivity = ee.Image(sensitivities.get(0))
+    pm_philic = ee.Image(0).select([0], ['b1'])
+    pm_phobic = ee.Image(0).select([0], ['b2'])
+    for i in range(1,31):
+        next_sensitivity = ee.Image(sensitivities.get(i))
+        daily_sensitivity_philic = sensitivity.select('b1').subtract(next_sensitivity.select('b1'))
+        daily_sensitivity_phobic = sensitivity.select('b2').subtract(next_sensitivity.select('b2'))
+        pm_philic = pm_philic.add(daily_sensitivity_philic.multiply(emiss.select('b1')))
+        pm_phobic = pm_phobic.add(daily_sensitivity_phobic.multiply(emiss.select('b2')))
+
+    # multiply emissions
+    pm = pm_philic.add(pm_phobic)
+
+    #totalPM = computeTotal(pm)
+    return pm.getMapId({
         'min': '0',
-        'max': '0.001',
+        'max': '0.01',
         'bands': 'b1',
         'format': 'png',
         'palette': 'FFFFFF, 220066',
         })
 
+
+def computeTotal(image):
+    """Computes total over a specific region"""
+    totalValue = image.reduceRegion(reducer=ee.Reducer.sum(), maxPixels=1e9)
+
+    return totalValue
 
 def getPopulationDensity(year):
     img = ee.Image(IMAGE_COLLECTION_ID + '/' + year).select('population-density')
@@ -139,7 +163,7 @@ def compute_IAV(emissions):
     return 0
 
 
-def compute_exposure(emissions_philic, emissions_phobic, sensitivity):
+def compute_exposure(emissions, sensitivity):
     """Computes the PM2.5 exposure given emissions and sensitivity"""
 
     for d in range(0,num_days):
@@ -189,9 +213,11 @@ RECEPTORS = ['Singapore', 'Malaysia', 'Indonesia', 'Population_weighted_SEAsia']
 DEFAULT_RECEPTOR = 'Population_weighted_SEAsia'
 
 # CHOOSE YEAR
-SENS_YEAR = 2009
+SENS_YEAR = 2008
 
 AVERAGE_EXP = 1
+
+SCALE_FACTOR = 1.0 / (24.0 * 24.0 * 3.0)
 
 ###############################################################################
 #                               Initialization.                               #
