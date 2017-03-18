@@ -27,16 +27,17 @@ class MainHandler(webapp2.RequestHandler):
 
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
-    mapid = getSensitivity('Malaysia', 2008)
-    #mapid = GetMainMapId()
-    print(mapid)
+    pm = getSensitivity('Malaysia', 2008)
+    mapid = GetMapId(pm)
+
+    # Compute the totals for different provinces. 
+
     template_values = {
         'eeMapId': mapid['mapid'],
         'eeToken': mapid['token']
     }
     template = JINJA2_ENVIRONMENT.get_template('index.html')
     self.response.out.write(template.render(template_values))
-
 
 
 
@@ -52,18 +53,23 @@ class DetailsHandler(webapp2.RequestHandler):
         print 'Met year = ' + metYear
         print 'Emissions year = ' + emissYear
         if receptor in RECEPTORS:
-            content = getSensitivity(receptor, metYear)
+            pm = getSensitivity(receptor, metYear)
+            content = GetMapId(pm)
         else:
             content = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
 
         print(content)
 
+        ## Compute the total 
+        totalPM = computeTotal(pm)
+
         ## Make new map 
         template_values = {
             'eeMapId': content['mapid'],
-            'eeToken': content['token']
+            'eeToken': content['token'],
+            'totalPM': totalPM['b1']
+
         }
-        print template_values
         self.response.out.write(json.dumps(template_values))
         #self.response.headers['Content-Type'] = 'application/json'
         #self.response.out.write(content)
@@ -90,22 +96,18 @@ app = webapp2.WSGIApplication([
 ###############################################################################
 
 
-def GetMainMapId():
-  """Returns the MapID for the population density for mean over entire dataset."""
-  collection = ee.ImageCollection(IMAGE_COLLECTION_ID).select('population-density')
+def GetMapId(image, maskValue=0.000000000001):
+    """Returns the MapID for a given image."""
+    mask = image.gt(ee.Image(maskValue)).int()
+    maskedImage = image.updateMask(mask)
 
-  reference = collection.filterDate('2000-01-01', '2017-01-01').sort('system:time_start', False)
-  #year = reference.first()
-
-    #mean = reference.mean()
-
-  return reference.getMapId({
-      'min': '0',
-      'max': '500',
-      'bands': 'population-density',
-      'format': 'png',
-      'palette': 'FFFFFF, 220066',
-      })
+    return maskedImage.getMapId({
+        'min': '0',
+        'max': '0.01',
+        'bands': 'b1',
+        'format': 'png',
+        'palette': 'FFFFFF, 220066',
+        })
 
 
 def getSensitivity(receptor, year):
@@ -129,21 +131,15 @@ def getSensitivity(receptor, year):
     # multiply emissions
     pm = pm_philic.add(pm_phobic)
 
-    #totalPM = computeTotal(pm)
-    return pm.getMapId({
-        'min': '0',
-        'max': '0.01',
-        'bands': 'b1',
-        'format': 'png',
-        'palette': 'FFFFFF, 220066',
-        })
+    return pm
+
 
 
 def computeTotal(image):
     """Computes total over a specific region"""
     totalValue = image.reduceRegion(reducer=ee.Reducer.sum(), maxPixels=1e9)
 
-    return totalValue
+    return ee.Feature(None, {'b1': totalValue.get('b1')}).getInfo()['properties']
 
 def getPopulationDensity(year):
     img = ee.Image(IMAGE_COLLECTION_ID + '/' + year).select('population-density')
@@ -161,35 +157,6 @@ def compute_IAV(emissions):
     """Get interannaual variability from GFED4 emissions."""
 
     return 0
-
-
-def compute_exposure(emissions, sensitivity):
-    """Computes the PM2.5 exposure given emissions and sensitivity"""
-
-    for d in range(0,num_days):
-        # if last day
-        if d == num_days - 1:
-            prev_sensitivity_philic = 0 #read data
-            prev_sensitivity_phobic = 0 #read data
-            daily_sensitivity_philic = prev_sensitivity_philic
-            daily_sensitivity_phobic = prev_sensitivity_phobic
-        else:
-            prev_sensitivity_philic = 0#read data
-            prev_sensitiity_phobic = 0#read data
-            pres_sensitivity_philic = 0#read data
-            pres_sensitivity_phobic = 0#read data
-            daily_sensitivity_philic = prev_sensitivity_philic - pres_sensitivity_philic
-            daily_sensitivity_phobic = prev_sensitivity_phobic - pres_sensitivity_phobic
-
-        # calculate daily contribution as sensitivity * emissions
-        cost_function[:,:,n] = cost_function[:,:,n] + daily_sensitivity_philic * emissions_philic
-        cost_function[:,:,n] = cost_function[:,:,n] + daily_sensitivity_phobic * emissions_phobic
-
-    # sum up daily for monthly
-    return np.sum(cost_function, axis=2)
-
-
-
 
 
 ###############################################################################

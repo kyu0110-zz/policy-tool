@@ -39,20 +39,19 @@ smoke.boot = function(eeMapId, eeToken) {
 
 
 /**
- * The main Trendy Lights application.
+ * The main application.
  * This constructor renders the UI and sets up event handling.
- * @param {google.maps.ImageMapType} mapType The map type to render on the map.
- * @param {Array<string>} polygonIds The IDs of the polygons to show on the map.
- *     For example ['poland', 'moldova'].
- * @constructor
  */
 smoke.App = function(mapType, eeMapId, eeToken) {
   // Create and display the map.
   this.map = this.createMap(mapType);
 
-  this.getReceptor(this.map, eeMapId, eeToken); 
+  // Shows chart with total PM from different regions.
+  this.drawChart();
 
-  //this.getTotal();
+  // Changes receptor or year based on UI
+  this.getReceptor(this.map); 
+
 
   // Register a click handler 
   //var controlUI = 
@@ -63,11 +62,9 @@ smoke.App = function(mapType, eeMapId, eeToken) {
 
 
 /**
- * Creates a Google Map with a black background the given map type rendered.
- * The map is anchored to the DOM element with the CSS class 'map'.
- * @param {google.maps.ImageMapType} mapType The map type to include on the map.
- * @return {google.maps.Map} A map instance with the map type rendered.
- */
+ * Creates a Google Map with default receptor and PM contribution
+ * overlaid.  
+  */
 smoke.App.prototype.createMap = function(mapType) {
   var mapOptions = {
     backgroundColor: '#FFFFFF',
@@ -83,6 +80,15 @@ smoke.App.prototype.createMap = function(mapType) {
   map.overlayMapTypes.push(mapType);
   return map;
 };
+
+
+/** 
+ * Adds a chart to map showing total PM at receptor site
+ * and contribution from various regions.
+ */
+smoke.App.prototype.addChart = function(){
+  
+}
 
 
 /** 
@@ -131,6 +137,31 @@ smoke.App.getEeMapType = function(eeMapId, eeToken) {
   return new google.maps.ImageMapType(eeMapOptions);
 };
 
+smoke.App.prototype.drawChart = function() {
+  // Add chart that shows contribution from each region
+    var summaryData = google.visualization.arrayToDataTable([
+               ['Province', 'Contribution'],
+               ['Jambi', 10],
+               ['South Sumatra', 4],
+               ['West Kalimantan', 6],
+               ['Central Kalimantan', 2],
+               ['Other',  1]
+    ]);
+        
+    var wrapper = new google.visualization.ChartWrapper({
+      chartType: 'PieChart',
+      dataTable: summaryData,
+      options: {
+        title: 'Contribution from each province'
+      }
+    });
+
+  var chartEl = $('.chart').get(0);
+    wrapper.setContainerId(chartEl);
+    wrapper.draw();
+};
+
+    
 smoke.App.prototype.getReceptor = function(map) {
   $('#get').click(function() {
     $.getJSON(
@@ -147,10 +178,14 @@ smoke.App.prototype.getReceptor = function(map) {
         // Get new maptype
         var mapType = smoke.App.getEeMapType(data.eeMapId, data.eeToken);
       
-        console.info(data.eeMapId) 
+        console.info(data.eeMapId);
+        console.info(data.totalPM);
+
         // Overlap new map
         mapType.setOpacity(0.3);
         map.overlayMapTypes.push(mapType);
+
+
     });
   });
 };
