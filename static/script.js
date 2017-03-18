@@ -50,8 +50,12 @@ smoke.App = function(mapType, boundaries) {
   // Draw boundaries
   this.addBoundaries(boundaries);
 
+  // Register a click handler to show a panel when user clicks a source region
+  this.map.data.addListener('mouseover', this.handlePolygonHover.bind(this));
+  this.map.data.addListener('mouseout', this.handlePolygonOut.bind(this));
+
   // Shows chart with total PM from different regions.
-  this.drawChart();
+  this.map.data.addListener('click', this.handlePolygonClick.bind(this));
 
   // Register a click handler to hide panel
   $('.panel .close').click(this.hidePanel.bind(this));
@@ -98,14 +102,58 @@ smoke.App.prototype.addBoundaries = function(regions) {
   }).bind(this));
   this.map.data.setStyle(function(feature) {
       return {
-          fillColor: 'green',
-          strokeColor: 'green',
-          strokeWeight: 3
+          'strokeWeight': 5,
+          'fillOpacity': 0.0,
+          'fillColor': 'red',
+          'strokeColor': 'red',
+          'strokeOpacity': 0.0
       };
   });
 };
 
 
+/** 
+ * Handles a click on a source region. 
+ */
+smoke.App.prototype.handlePolygonHover = function(event) {
+    this.clear();
+    var feature = event.feature;
+
+    // Highlight region
+    this.map.data.overrideStyle(feature, {
+        strokeOpacity: 0.6
+    });
+};
+
+/** 
+ * Handles a click on a source region. 
+ */
+smoke.App.prototype.handlePolygonOut = function(event) {
+    this.map.data.revertStyle();
+};
+
+/**
+ * Handles a click
+ */
+smoke.App.prototype.handlePolygonClick = function(event) {
+    this.clear();
+    var feature = event.feature;
+
+    // Highlight the polygon and show the chart
+    this.map.data.overrideStyle(feature, {
+        strokeOpacity: 0.6,
+    });
+
+    $('.panel').show();
+    this.drawChart();
+    //var title = feature.getProperty('title');
+    //$('.panel').show();
+    //$('.panel .title').show().text(title);
+
+    // Load and show details about region
+    //var id = feature.getPRoperty('id');
+
+};
 /** 
  * Adds a chart to map showing total PM at receptor site
  * and contribution from various regions.
