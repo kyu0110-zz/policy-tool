@@ -30,11 +30,12 @@ class MainHandler(webapp2.RequestHandler):
     pm = getSensitivity('Malaysia', 2008)
     mapid = GetMapId(pm)
 
-    # Compute the totals for different provinces. 
+    # Compute the totals for different provinces.
 
     template_values = {
         'eeMapId': mapid['mapid'],
-        'eeToken': mapid['token']
+        'eeToken': mapid['token'],
+        'boundaries': json.dumps(REGION_IDS)
     }
     template = JINJA2_ENVIRONMENT.get_template('index.html')
     self.response.out.write(template.render(template_values))
@@ -141,6 +142,12 @@ def computeTotal(image):
 
     return ee.Feature(None, {'b1': totalValue.get('b1')}).getInfo()['properties']
 
+
+def getProvinceBoundaries():
+    """Get boundaries for the provinces"""
+    fc = ee.FeatureCollection('ft:1lhjVcyhalgraQMwtlvGdaGj26b9VlrJYZy8ju0WO').first().geometry();
+    return fc.getInfo()
+
 def getPopulationDensity(year):
     img = ee.Image(IMAGE_COLLECTION_ID + '/' + year).select('population-density')
 
@@ -186,6 +193,8 @@ AVERAGE_EXP = 1
 
 SCALE_FACTOR = 1.0 / (24.0 * 24.0 * 3.0)
 
+REGION_PATH = 'static/regions/'
+
 ###############################################################################
 #                               Initialization.                               #
 ###############################################################################
@@ -194,6 +203,9 @@ SCALE_FACTOR = 1.0 / (24.0 * 24.0 * 3.0)
 # Use our App Engine service account's credentials.
 EE_CREDENTIALS = ee.ServiceAccountCredentials(
     config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE)
+
+# Read region IDs from the file system
+REGION_IDS = [name.replace('.json', '') for name in os.listdir(REGION_PATH)]
 
 # Create the Jinja templating system we use to dynamically generate HTML. See:
 # http://jinja.pocoo.org/docs/dev/

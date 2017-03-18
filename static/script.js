@@ -15,7 +15,7 @@ smoke = {};  // Our namespace.
  * @param {string} serializedPolygonIds A serialized array of the IDs of the
  *     polygons to show on the map. For example: "['poland', 'moldova']".
  */
-smoke.boot = function(eeMapId, eeToken) {
+smoke.boot = function(eeMapId, eeToken, boundaries) {
   // Load external libraries.
   google.load('visualization', '1.0');
   google.load('jquery', '1');
@@ -24,10 +24,11 @@ smoke.boot = function(eeMapId, eeToken) {
       callback: function(){}
   });
 
+  console.info(boundaries)
   // Create the Trendy Lights app.
   google.setOnLoadCallback(function() {
     var mapType = smoke.App.getEeMapType(eeMapId, eeToken);
-    var app = new smoke.App(mapType);
+    var app = new smoke.App(mapType, JSON.parse(boundaries));
   });
 };
 
@@ -42,15 +43,18 @@ smoke.boot = function(eeMapId, eeToken) {
  * The main application.
  * This constructor renders the UI and sets up event handling.
  */
-smoke.App = function(mapType, eeMapId, eeToken) {
+smoke.App = function(mapType, boundaries) {
   // Create and display the map.
   this.map = this.createMap(mapType);
+
+  // Draw boundaries
+  this.addBoundaries(boundaries);
 
   // Shows chart with total PM from different regions.
   this.drawChart();
 
-  // Register a click handler to toggle panel
-  $('.panel .close').click(this.togglePanel.bind(this));
+  // Register a click handler to hide panel
+  $('.panel .close').click(this.hidePanel.bind(this));
 
   // Changes receptor or year based on UI
   this.getReceptor(this.map); 
@@ -82,6 +86,23 @@ smoke.App.prototype.createMap = function(mapType) {
   mapType.setOpacity(0.4);
   map.overlayMapTypes.push(mapType);
   return map;
+};
+
+
+/**
+ * Add boundaries to map
+ */
+smoke.App.prototype.addBoundaries = function(regions) {
+  regions.forEach((function(region) {
+    this.map.data.loadGeoJson('static/regions/' + region + '.json');
+  }).bind(this));
+  this.map.data.setStyle(function(feature) {
+      return {
+          fillColor: 'green',
+          strokeColor: 'green',
+          strokeWeight: 3
+      };
+  });
 };
 
 
@@ -117,8 +138,8 @@ smoke.App.prototype.drawChart = function() {
 /**
  * Hides panel
  */
-smoke.App.prototype.togglePanel = function() { 
-    $('.panel .details').toggleClass('collapsed');
+smoke.App.prototype.hidePanel = function() { 
+    $('.panel').hide();
 };
 
 
@@ -126,7 +147,7 @@ smoke.App.prototype.togglePanel = function() {
  * Clears panel
  */
 smoke.App.prototype.clear = function() {
-   $('.panel .details').hide();
+   $('.panel').hide();
 };
 
 
