@@ -27,21 +27,26 @@
     <!-- The DOM of our application. -->
     <div class="trendy">
 
-      <!-- The title of the application. -->
-      <h1>SMOKE Policy Tool</h1>
-
       <!-- A container which the Maps API will populate with a map. -->
       <div class="map"></div>
 
       <!-- Chart showing the contribution from each province -->
       <div class='panel'>
-        <div class='chart'></div>
+        <div class="close">close</div>
+        <div class="details">
+          <div class='chart'></div>
+        </div>
       </div>
 
       <!-- UI -->
       <div class='UI'>
+
         <table>
           <tr>
+            <td>
+            <!-- The title of the application. -->
+            <h1>SMOKE Policy Tool</h1>
+            </td>
             <td>
             Choose receptor site
             <br>
@@ -75,8 +80,6 @@
             </td>
           </tr>
         </table>
-        <br>
-        <a href="https://earthengine.google.org">Powered by Google Earth Engine</a>
       </div>
     </div>
     <script>

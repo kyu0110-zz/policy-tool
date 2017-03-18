@@ -49,6 +49,9 @@ smoke.App = function(mapType, eeMapId, eeToken) {
   // Shows chart with total PM from different regions.
   this.drawChart();
 
+  // Register a click handler to toggle panel
+  $('.panel .close').click(this.togglePanel.bind(this));
+
   // Changes receptor or year based on UI
   this.getReceptor(this.map); 
 
@@ -86,9 +89,45 @@ smoke.App.prototype.createMap = function(mapType) {
  * Adds a chart to map showing total PM at receptor site
  * and contribution from various regions.
  */
-smoke.App.prototype.addChart = function(){
-  
-}
+smoke.App.prototype.drawChart = function() {
+  // Add chart that shows contribution from each region
+    var summaryData = google.visualization.arrayToDataTable([
+               ['Province', 'Contribution'],
+               ['Jambi', 10],
+               ['South Sumatra', 4],
+               ['West Kalimantan', 6],
+               ['Central Kalimantan', 2],
+               ['Other',  1]
+    ]);
+        
+    var wrapper = new google.visualization.ChartWrapper({
+      chartType: 'PieChart',
+      dataTable: summaryData,
+      options: {
+        title: 'Contribution from each province'
+      }
+    });
+
+  var chartEl = $('.chart').get(0);
+    wrapper.setContainerId(chartEl);
+    wrapper.draw();
+};
+
+
+/**
+ * Hides panel
+ */
+smoke.App.prototype.togglePanel = function() { 
+    $('.panel .details').toggleClass('collapsed');
+};
+
+
+/** 
+ * Clears panel
+ */
+smoke.App.prototype.clear = function() {
+   $('.panel .details').hide();
+};
 
 
 /** 
@@ -135,30 +174,6 @@ smoke.App.getEeMapType = function(eeMapId, eeToken) {
     tileSize: new google.maps.Size(256, 256)
   };
   return new google.maps.ImageMapType(eeMapOptions);
-};
-
-smoke.App.prototype.drawChart = function() {
-  // Add chart that shows contribution from each region
-    var summaryData = google.visualization.arrayToDataTable([
-               ['Province', 'Contribution'],
-               ['Jambi', 10],
-               ['South Sumatra', 4],
-               ['West Kalimantan', 6],
-               ['Central Kalimantan', 2],
-               ['Other',  1]
-    ]);
-        
-    var wrapper = new google.visualization.ChartWrapper({
-      chartType: 'PieChart',
-      dataTable: summaryData,
-      options: {
-        title: 'Contribution from each province'
-      }
-    });
-
-  var chartEl = $('.chart').get(0);
-    wrapper.setContainerId(chartEl);
-    wrapper.draw();
 };
 
     
