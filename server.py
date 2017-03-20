@@ -27,7 +27,7 @@ class MainHandler(webapp2.RequestHandler):
 
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
-    pm = getSensitivity('Malaysia', 2008)
+    pm = getMonthlyPM('Malaysia', 2008)
     mapid = GetMapId(pm)
 
     # Compute the totals for different provinces.
@@ -54,7 +54,7 @@ class DetailsHandler(webapp2.RequestHandler):
         print 'Met year = ' + metYear
         print 'Emissions year = ' + emissYear
         if receptor in RECEPTORS:
-            pm = getSensitivity(receptor, metYear)
+            pm = getMonthlySensitivity(receptor, metYear)
             content = GetMapId(pm)
         else:
             content = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
@@ -97,8 +97,10 @@ app = webapp2.WSGIApplication([
 ###############################################################################
 
 
-def GetMapId(image, maskValue=0.000000000001):
+def GetMapId(imageCollection, maskValue=0.000000000001):
     """Returns the MapID for a given image."""
+    image = ee.Image(imageCollection.sum())
+
     mask = image.gt(ee.Image(maskValue)).int()
     maskedImage = image.updateMask(mask)
 
@@ -111,29 +113,62 @@ def GetMapId(image, maskValue=0.000000000001):
         })
 
 
-def getSensitivity(receptor, year):
-    """Returns adjoint sensitivity."""
-    sensitivities = ee.ImageCollection('users/karenyu/'+receptor+'_sensitivities').sort('system:time_start', False).toList(31)
+def getDailyPM(receptor, year):
+    """Returns daily PM."""
+    sensitivities = ee.ImageCollection('users/karenyu/'+receptor+'_sensitivities').filterDate(str(year)+'-01-01', str(year)+'-12-31')
 
     # get emissions
     emiss = ee.Image('users/karenyu/placeholder_emissions')
 
-    # iterate over sensitivity files
-    sensitivity = ee.Image(sensitivities.get(0))
-    pm_philic = ee.Image(0).select([0], ['b1'])
-    pm_phobic = ee.Image(0).select([0], ['b2'])
-    for i in range(1,31):
-        next_sensitivity = ee.Image(sensitivities.get(i))
-        daily_sensitivity_philic = sensitivity.select('b1').subtract(next_sensitivity.select('b1'))
-        daily_sensitivity_phobic = sensitivity.select('b2').subtract(next_sensitivity.select('b2'))
-        pm_philic = pm_philic.add(daily_sensitivity_philic.multiply(emiss.select('b1')))
-        pm_phobic = pm_phobic.add(daily_sensitivity_phobic.multiply(emiss.select('b2')))
+    def computeDailySensitivity(sensitivity, prev_sensitivities):
+        # first sum up all previous sensitivities, then subtract from current value
+        daily_sensitivity = sensitivity.subtract(ee.ImageCollection(ee.List(prev_sensitivities)).sum())
 
-    # multiply emissions
-    pm = pm_philic.add(pm_phobic)
+        # append to list
+        return ee.List(prev_sensitivities).add(daily_sensitivity)
 
-    return pm
+    def computePM(sensitivity, pm_values):
+        pm_philic = sensitivity.select('b1').multiply(emiss.select('b1'))
+        pm_phobic = sensitivity.select('b2').multiply(emiss.select('b2'))
+        return ee.List(pm_values).add(pm_philic.add(pm_phobic))
 
+    all_pm = ee.List([])
+
+    # iterate over sensitivity files, month by month then day by day
+    for month in range(1,5):
+        monthly_sensitivities = sensitivities.filterDate(str(year) + '-' + str(month).zfill(2) + '-01', str(year) + '-' + str(month+1).zfill(2) + '-01').sort('system:time_start', False)
+
+        first = ee.List([ee.Image(monthly_sensitivities.first())])
+        #first = ee.List([ee.Image(0).select([0], ['b1']).addBands(ee.Image(0).select([0], ['b2']))])
+        daily_sensitivities = ee.ImageCollection(ee.List(ee.ImageCollection(monthly_sensitivities.toList(30, 1)).iterate(computeDailySensitivity, first)))
+
+        first = ee.List([])
+        daily_pm = daily_sensitivities.iterate(computePM, first)
+
+        all_pm = all_pm.cat(ee.List(daily_pm))
+
+    return ee.ImageCollection(all_pm)
+
+
+
+def getMonthlyPM(receptor, year):
+    """Returns monthly PM"""
+    sensitivities = ee.ImageCollection('users/karenyu/'+receptor+'_monthly_sensitivities').filterDate(str(year)+'-01-01', str(year)+'-12-31').sort('system:time_start', True) # sort in ascending order
+
+    # get emissions
+    emiss = ee.Image('users/karenyu/placeholder_emissions')
+
+    first = ee.List([])
+
+    def computePM(sensitivity, pm_values):
+        pm_philic = sensitivity.select('b1').multiply(emiss.select('b1'))
+        pm_phobic = sensitivity.select('b2').multiply(emiss.select('b2'))
+        return ee.List(pm_values).add(pm_philic.add(pm_phobic))
+
+    # iterate over all files
+    monthly_pm = sensitivities.iterate(computePM, first)
+
+    return ee.ImageCollection(ee.List(monthly_pm))
 
 
 def computeTotal(image):

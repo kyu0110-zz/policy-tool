@@ -57,6 +57,9 @@ smoke.App = function(mapType, boundaries) {
   // Shows chart with total PM from different regions.
   this.map.data.addListener('click', this.handlePolygonClick.bind(this));
 
+  // Register a click handler to show a panel when user clicks on receptor
+  //this.map.data.addListener('click',
+
   // Register a click handler to hide panel
   $('.panel .close').click(this.hidePanel.bind(this));
 
@@ -116,7 +119,6 @@ smoke.App.prototype.addBoundaries = function(regions) {
  * Handles a click on a source region. 
  */
 smoke.App.prototype.handlePolygonHover = function(event) {
-    this.clear();
     var feature = event.feature;
 
     // Highlight region
