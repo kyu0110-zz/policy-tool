@@ -54,8 +54,11 @@ smoke.App = function(mapType, boundaries) {
   this.map.data.addListener('mouseover', this.handlePolygonHover.bind(this));
   this.map.data.addListener('mouseout', this.handlePolygonOut.bind(this));
 
+  // Draw hidden details panel
+  $('.detailstab').click(this.handlePanelExpand.bind(this));
+
   // Shows chart with total PM from different regions.
-  this.map.data.addListener('click', this.handlePolygonClick.bind(this));
+  //this.map.data.addListener('click', this.handlePolygonClick.bind(this));
 
   // Register a click handler to show a panel when user clicks on receptor
   //this.map.data.addListener('click',
@@ -156,6 +159,16 @@ smoke.App.prototype.handlePolygonClick = function(event) {
     //var id = feature.getPRoperty('id');
 
 };
+
+/** 
+ * Draws panel in hidden state
+ */
+smoke.App.prototype.handlePanelExpand = function(event) {
+    $('.detailstab').hide();
+    $('.panel').show();
+    this.drawChart();
+}
+
 /** 
  * Adds a chart to map showing total PM at receptor site
  * and contribution from various regions.
@@ -190,6 +203,7 @@ smoke.App.prototype.drawChart = function() {
  */
 smoke.App.prototype.hidePanel = function() { 
     $('.panel').hide();
+    $('.detailstab').show();
 };
 
 
