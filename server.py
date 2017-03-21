@@ -28,7 +28,8 @@ class MainHandler(webapp2.RequestHandler):
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
     pm = getMonthlyPM('Malaysia', 2008)
-    mapid = GetMapId(pm)
+    totPM = pm.sum().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
+    mapid = GetMapId(totPM)
 
     # Compute the totals for different provinces.
 
@@ -54,15 +55,17 @@ class DetailsHandler(webapp2.RequestHandler):
         print 'Met year = ' + metYear
         print 'Emissions year = ' + emissYear
         if receptor in RECEPTORS:
-            pm = getMonthlySensitivity(receptor, metYear)
-            content = GetMapId(pm)
+            pm = getMonthlyPM(receptor, metYear)
+            totPM = pm.sum().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
+            content = GetMapId(totPM)
         else:
             content = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
 
         print(content)
 
-        ## Compute the total 
-        totalPM = computeTotal(pm)
+        ## Compute the total
+        proj = ee.Image(pm.first()).select('b1').projection()
+        totalPM = computeTotal(totPM, proj)
 
         ## Make new map 
         template_values = {
@@ -97,10 +100,8 @@ app = webapp2.WSGIApplication([
 ###############################################################################
 
 
-def GetMapId(imageCollection, maskValue=0.000000000001):
+def GetMapId(image, maskValue=0.000000000001):
     """Returns the MapID for a given image."""
-    image = ee.Image(imageCollection.sum())
-
     mask = image.gt(ee.Image(maskValue)).int()
     maskedImage = image.updateMask(mask)
 
@@ -163,7 +164,7 @@ def getMonthlyPM(receptor, year):
     def computePM(sensitivity, pm_values):
         pm_philic = sensitivity.select('b1').multiply(emiss.select('b1'))
         pm_phobic = sensitivity.select('b2').multiply(emiss.select('b2'))
-        return ee.List(pm_values).add(pm_philic.add(pm_phobic))
+        return ee.List(pm_values).add(pm_philic.add(pm_phobic).set('system:footprint', sensitivity.get('system:footprint')))
 
     # iterate over all files
     monthly_pm = sensitivities.iterate(computePM, first)
@@ -171,9 +172,10 @@ def getMonthlyPM(receptor, year):
     return ee.ImageCollection(ee.List(monthly_pm))
 
 
-def computeTotal(image):
+def computeTotal(image, projection):
     """Computes total over a specific region"""
-    totalValue = image.reduceRegion(reducer=ee.Reducer.sum(), maxPixels=1e9)
+    geom = ee.Geometry.Rectangle([-55, -20, 40, 20]);
+    totalValue = image.reduceRegion(reducer=ee.Reducer.sum(), maxPixels=1e9, crs=projection)
 
     return ee.Feature(None, {'b1': totalValue.get('b1')}).getInfo()['properties']
 
