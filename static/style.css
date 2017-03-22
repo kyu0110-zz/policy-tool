@@ -43,6 +43,23 @@ body,
   text-align: center
 }
 
+.trendy .scenariotab {
+  position: absolute;
+  z-index: 10;
+  background-color: rgba(252, 255, 255, 1.00);
+  font-family: 'Roboto', sans-serif;
+  font-weight: bold;
+  text-align: center
+}
+
+.trendy .scenarioUI {
+  display: none;
+  position: absolute;
+  z-index: 2;
+  background-color: rgba(255, 255, 255, 0.9);
+  font-family: 'Roboto', sans-serif;
+}
+
 .trendy .panel {
   display: none;
   position: absolute;
@@ -58,7 +75,7 @@ body,
   padding-right: 10px;
 }
 
-.trendy .UI {
+.trendy .layerUI {
   position: absolute;
   top: 0px;
   margin: 0px;
@@ -67,6 +84,7 @@ body,
   z-index: 3;
   background-color: rgba(255, 255, 255, 0.9);
   width: 100%;
+  font-family: 'Roboto', sans-serif;
 }
 
 /* Large screens. */
@@ -77,6 +95,63 @@ body,
     padding-left: 20px;
     padding-right: 40px;
   }
+
+  .trendy .layerUI {
+    font-size: 18px;
+  }
+
+ .trendy .layerUI td {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+ .switch {
+      position: relative;
+      display: inline-block;
+      width: 32px;
+      height: 18px;
+     }
+
+  .switch input {display:none;}
+
+  .slider {
+        position: absolute;
+          cursor: pointer;
+            top: 0;
+              left: 0;
+                right: 0;
+                  bottom: 0;
+                    background-color: #ccc;
+                      -webkit-transition: .4s;
+                        transition: .4s;
+  }
+
+ .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 2px;
+        bottom: 2px;
+        background-color: white;
+        -webkit-transition: .4s;
+        transition: .4s;
+}
+
+input:checked + .slider {
+      background-color: #2196F3;
+  }
+
+input:focus + .slider {
+        box-shadow: 0 0 1px #2196F3;
+    }
+
+input:checked + .slider:before {
+          -webkit-transform: translateX(14px);
+            -ms-transform: translateX(14px);
+              transform: translateX(14px);
+          }
+
 
   .trendy .detailstab {
     width: 100px;
@@ -89,6 +164,47 @@ body,
     margin: 0px;
     overflow: hidden;
     cursor: pointer;
+  }
+
+  .trendy .scenariotab {
+    width: 100px;
+    height: 50px;
+    right: -25px;
+    top: 150px;
+    transform: rotate(270deg);
+    font-size: 20px;
+    padding: 0px;
+    margin: 0px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+ 
+  .trendy .scenarioUI {
+    width: 400px;
+    height: 400px;
+    top: 126px;
+    right: 0px;
+    overflow: hidden;
+  }
+
+  .trendy .scenarioUI .left {
+    width: 200px;
+    left: 0px;
+    display: block;
+  }
+
+  .trend .secnarioUI .right {
+      width: 200px;
+      right: 0px;
+      display: block;
+  }
+ 
+  .trendy .scenarioUI .close {
+    position: absolute;
+    bottom: 14px; 
+    left: 14px;
+    cursor: pointer;
+    z-index: 2;
   }
 
   .trendy .panel {

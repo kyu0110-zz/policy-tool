@@ -44,45 +44,94 @@
         </div>
       </div>
 
-      <!-- UI -->
-      <div class='UI'>
+      <!-- Tab that allows for designing scenarios -->
+      <div class="scenariotab">Design scenario</div>
 
+      <!-- Scenario design panel -->
+      <div class="scenarioUI">
+        <div class="close">Hide</div>
+        <!-- The title of the application. -->
+        <h2>Design scenario</h2>
         <table>
-          <tr>
-            <td>
-            <!-- The title of the application. -->
-            <h1>SMOKE Policy Tool</h1>
-            </td>
-            <td>
-            Choose receptor site
-            <br>
-            <form>
-                <select id="receptor" name="receptor">
+            <tr>
+                <td>
+                    Choose receptor site
+                    <br>
+                    <form>
+                    <select id="receptor" name="receptor">
                     <option value="Malaysia">Malaysia</option>
                     <option value="Singapore">Singapore</option>
-                    <option value="Indonesia">Indonesia</option
+                    <option value="Indonesia">Indonesia</option>
+                    </select>
+                    </form>
+                </td>
+                <td>
+                Meteorological year
+                <br>
+                <form>
+                <select id="metYear" name="metYear">
+                    <option value=2005>2005</option>
+                    <option value=2006>2006</option>
+                    <option value=2007>2007</option>
+                    <option value=2008 selected="selected">2008</option>
+                    <option value=2009>2009</option>
                 </select>
-            </form>
-            </td>
-
-            <td>
-              Meteorological year
-              <br>
-              <form oninput="metYearOutput.value = parseInt(metYear.value);" onsubmit="return false;">
-              <input id="metYear" name="metYear" type="range" min="2006" max="2009" value="2008">
-              <output for="metYear" name="metYearOutput">2008</output>
-              </form>
-            </td>
-            <td>
+                </form>
+                </td>
+            </tr>
+            <tr>
+                <td>
               Emissions year
               <br>
               <form oninput="emissYearOutput.value = parseInt(emissYear.value);" onsubmit="return false;">
               <input id="emissYear" name="emissYear" type="range" min="2000" max="2020" value="2006">
               <output for="emissYear" name="emissYearOutput">2006</output>
               </form>
+              <button id="get">Submit scenario</button>
+                </td>
+            </tr>
+        </table>
+      </div>
+
+      <!-- UI -->
+      <div class='layerUI'>
+        <table>
+          <tr>
+            <td rowspan="2">
+            <!-- The title of the application. -->
+            <h1>SMOKE Policy Tool</h1>
+            </td>
+            <td colspan="4">
+                <b>Map Layers:</b>
+            </td>
+          </tr>
+          <tr valign="top">
+              <td>
+                  <label class="switch">
+                      <input type="checkbox">
+                      <div class="slider"></div>
+                  </label>
+              Landcover          
             </td>
             <td>
-              <button id="get">Get results</button>
+                <label class="switch">
+                      <input type="checkbox">
+                      <div class="slider"></div>
+                  </label>
+            Emissions
+            </td>
+            <td>
+                <label for="gc">
+                    <input type="radio" name="gclayer" id="sensitivity" value="sensitivity">Sensitivity<br>
+                    <input type="radio" name="gclayer" id="PM" value="PM">PM contribution
+                </label>
+            </td>
+            <td>
+                <label class="switch">
+                      <input type="checkbox">
+                      <div class="slider"></div>
+                  </label>
+              Population density
             </td>
           </tr>
         </table>

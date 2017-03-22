@@ -62,11 +62,12 @@ smoke.App = function(mapType, boundaries) {
   // Shows chart with total PM from different regions.
   //this.map.data.addListener('click', this.handlePolygonClick.bind(this));
 
-  // Register a click handler to show a panel when user clicks on receptor
-  //this.map.data.addListener('click',
-
   // Register a click handler to hide panel
   $('.panel .close').click(this.hidePanel.bind(this));
+
+  // Adds tab for scenario panel
+  $('.scenariotab').click(this.handleScenarioExpand.bind(this));
+  $('.scenarioUI .close').click(this.hideScenario.bind(this));
 
   // Changes receptor or year based on UI
   this.getReceptor(this.map); 
@@ -171,6 +172,22 @@ smoke.App.prototype.handlePanelExpand = function(event) {
     $('.panel .title').show().text('Total PM = ' + smoke.App.total_PM + ' ug/m^3');
     this.drawTimeSeries();
     this.drawSourcePie();
+}
+
+/** 
+ * Draws panel in hidden state
+ */
+smoke.App.prototype.handleScenarioExpand = function(event) {
+    $('.scenariotab').hide();
+    $('.scenarioUI').show();
+}
+
+/** 
+ * Draws panel in hidden state
+ */
+smoke.App.prototype.hideScenario = function(event) {
+    $('.scenarioUI').hide();
+    $('.scenariotab').show();
 }
 
 /** 
