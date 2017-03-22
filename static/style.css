@@ -92,7 +92,7 @@ body,
   }
 
   .trendy .panel {
-    width: 400px;
+    width: 500px;
     left: 0px;
     top: 126px;
     padding: 14px;
@@ -104,6 +104,13 @@ body,
 
     }
 
+  .trendy .panel .title {
+    position: absolute;
+    top: 14px; 
+    left: 14px;
+    z-index: 2;
+  }
+  
   .trendy .panel .close {
     position: absolute;
     top: 14px;

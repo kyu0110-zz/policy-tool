@@ -28,6 +28,10 @@ class MainHandler(webapp2.RequestHandler):
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
     pm = getMonthlyPM('Malaysia', 2008)
+
+    # get pm exposure for every image
+    exposure = getExposureTimeSeries(pm)
+
     totPM = pm.sum().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
     mapid = GetMapId(totPM)
 
@@ -36,7 +40,8 @@ class MainHandler(webapp2.RequestHandler):
     template_values = {
         'eeMapId': mapid['mapid'],
         'eeToken': mapid['token'],
-        'boundaries': json.dumps(REGION_IDS)
+        'boundaries': json.dumps(REGION_IDS),
+        'timeseries': json.dumps(exposure)
     }
     template = JINJA2_ENVIRONMENT.get_template('index.html')
     self.response.out.write(template.render(template_values))
@@ -56,6 +61,7 @@ class DetailsHandler(webapp2.RequestHandler):
         print 'Emissions year = ' + emissYear
         if receptor in RECEPTORS:
             pm = getMonthlyPM(receptor, metYear)
+            exposure = getExposureTimeSeries(pm)
             totPM = pm.sum().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
             content = GetMapId(totPM)
         else:
@@ -71,7 +77,8 @@ class DetailsHandler(webapp2.RequestHandler):
         template_values = {
             'eeMapId': content['mapid'],
             'eeToken': content['token'],
-            'totalPM': totalPM['b1']
+            'totalPM': totalPM['b1'],
+            'timeseries': json.dumps(exposure)
 
         }
         self.response.out.write(json.dumps(template_values))
@@ -170,6 +177,25 @@ def getMonthlyPM(receptor, year):
     monthly_pm = sensitivities.iterate(computePM, first)
 
     return ee.ImageCollection(ee.List(monthly_pm))
+
+
+def getExposureTimeSeries(imageCollection):
+    """Computes the exposure at receptor site"""
+
+    def sumRegion(image):
+        PM_at_receptor = image.reduceRegion(reducer=ee.Reducer.sum())
+        return ee.Feature(None, {'b1': PM_at_receptor.get('b1'),
+                                 'index': image.get('system:index')})
+
+    exposure = imageCollection.map(sumRegion).getInfo()
+
+    # extract the values
+    def extractSum(feature):
+        return [feature['properties']['index'],
+                feature['properties']['b1']]
+
+    return map(extractSum, exposure['features'])
+
 
 
 def computeTotal(image, projection):

@@ -35,9 +35,12 @@
           
       <!-- Chart showing the contribution from each province -->
       <div class='panel'>
+        <div class="title"></div>
         <div class="close">hide</div>
+        <br>
         <div class="details">
-          <div class='chart'></div>
+          <div class="receptorTimeSeries"></div>
+          <div class='sourcePie'></div>
         </div>
       </div>
 
@@ -89,7 +92,8 @@
       smoke.boot(
           '{{ eeMapId | safe }}',
           '{{ eeToken | safe }}',
-          '{{ boundaries | safe}}');
+          '{{ boundaries | safe}}',
+          '{{ timeseries | safe}}');
     </script>
 
   </body>

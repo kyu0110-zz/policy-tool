@@ -15,7 +15,7 @@ smoke = {};  // Our namespace.
  * @param {string} serializedPolygonIds A serialized array of the IDs of the
  *     polygons to show on the map. For example: "['poland', 'moldova']".
  */
-smoke.boot = function(eeMapId, eeToken, boundaries) {
+smoke.boot = function(eeMapId, eeToken, boundaries, timeseries) {
   // Load external libraries.
   google.load('visualization', '1.0');
   google.load('jquery', '1');
@@ -24,11 +24,13 @@ smoke.boot = function(eeMapId, eeToken, boundaries) {
       callback: function(){}
   });
 
-  console.info(boundaries)
   // Create the Trendy Lights app.
   google.setOnLoadCallback(function() {
     var mapType = smoke.App.getEeMapType(eeMapId, eeToken);
     var app = new smoke.App(mapType, JSON.parse(boundaries));
+    
+    // set the timesereies values for the chart
+    smoke.App.timeseries = JSON.parse(timeseries);
   });
 };
 
@@ -166,14 +168,16 @@ smoke.App.prototype.handlePolygonClick = function(event) {
 smoke.App.prototype.handlePanelExpand = function(event) {
     $('.detailstab').hide();
     $('.panel').show();
-    this.drawChart();
+    $('.panel .title').show().text('Total PM = ' + smoke.App.total_PM + ' ug/m^3');
+    this.drawTimeSeries();
+    this.drawSourcePie();
 }
 
 /** 
  * Adds a chart to map showing total PM at receptor site
  * and contribution from various regions.
  */
-smoke.App.prototype.drawChart = function() {
+smoke.App.prototype.drawSourcePie = function() {
   // Add chart that shows contribution from each region
     var summaryData = google.visualization.arrayToDataTable([
                ['Province', 'Contribution'],
@@ -192,11 +196,31 @@ smoke.App.prototype.drawChart = function() {
       }
     });
 
-  var chartEl = $('.chart').get(0);
+  var chartEl = $('.sourcePie').get(0);
     wrapper.setContainerId(chartEl);
     wrapper.draw();
 };
 
+/** 
+ * Adds a chart to map showing total PM at receptor site
+ * and contribution from various regions.
+ */
+smoke.App.prototype.drawTimeSeries = function() {
+  // Add chart that shows contribution from each region
+    var summaryData = google.visualization.arrayToDataTable(smoke.App.timeseries, true);
+        
+    var wrapper = new google.visualization.ChartWrapper({
+      chartType: 'LineChart',
+      dataTable: summaryData,
+      options: {
+        title: 'Population weighted exposure'
+      }
+    });
+
+  var chartEl = $('.receptorTimeSeries').get(0);
+    wrapper.setContainerId(chartEl);
+    wrapper.draw();
+};
 
 /**
  * Hides panel
@@ -281,10 +305,17 @@ smoke.App.prototype.getReceptor = function(map) {
         console.info(data.eeMapId);
         console.info(data.totalPM);
 
+        // Set total PM equal to extracted value
+        smoke.App.total_PM = data.totalPM;
+        smoke.App.timeseries = JSON.parse(data.timeseries);
+
         // Overlap new map
         mapType.setOpacity(0.3);
         map.overlayMapTypes.push(mapType);
 
+        // Redraw charts
+        $('.panel').hide();
+        $('.detailstab').show(); 
 
     });
   });
@@ -301,6 +332,9 @@ smoke.App.DEFAULT_ZOOM = 5;
 /** @type {Object} The default center of the map. */
 smoke.App.DEFAULT_CENTER = {lng: 110.82, lat: 3.35};
 
+
+smoke.App.total_PM = 0.0;
+smoke.App.timeseries = 0.0;
 
 /**
  * @type {Array} An array of Google Map styles. See:
