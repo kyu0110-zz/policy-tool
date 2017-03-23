@@ -47,6 +47,42 @@ class MainHandler(webapp2.RequestHandler):
     self.response.out.write(template.render(template_values))
 
 
+class LayerHandler(webapp2.RequestHandler):
+    """A servlet to handle requests for different map layers."""
+
+    def get(self):
+        landcover = self.request.get('landcover')
+        emissions = self.request.get('emissions')
+        geoschem = self.request.get('geoschem')
+        population = self.request.get('population')
+
+        print('Landcover = ' + landcover)
+        print('Emissions = ' + emissions)
+        print('geoschem = ' + geoschem)
+        print('population = ' + population)
+
+        if landcover == 'true':
+            # add landcover layer to map
+            landcover_img = getLandcoverData()
+
+        if emissions == 'true':
+            # add emissions layer to map
+            emissions_img = getEmissions()
+
+        if geoschem == 'true':
+            # add geoschem layer to map
+            geoschem_img =getMonthlyPM('Malaysia', '2006')
+
+        if population == 'true':
+            # add population density layer to map
+            pop_img = getPopulationDensity('2010')
+
+        template_values = {
+        'eeMapId': pop_img['mapid'],
+        'eeToken': pop_img['token'],
+        }
+        self.response.out.write(json.dumps(template_values))
+
 
 class DetailsHandler(webapp2.RequestHandler):
     """A servlet to handle requests from UI."""
@@ -97,6 +133,7 @@ class DetailsHandler(webapp2.RequestHandler):
 # http://webapp-improved.appspot.com/tutorials/quickstart.html
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
+    ('/layers', LayerHandler),
     ('/details', DetailsHandler)
 ], debug=True)
 
@@ -120,6 +157,17 @@ def GetMapId(image, maskValue=0.000000000001):
         'palette': 'FFFFFF, 220066',
         })
 
+
+def changeLayers():
+    """Updates layers based on input from UI"""
+    return 0
+
+
+def getLandcoverData():
+    return 0
+
+def getEmissions():
+    return 0
 
 def getDailyPM(receptor, year):
     """Returns daily PM."""
@@ -212,14 +260,14 @@ def getProvinceBoundaries():
     return fc.getInfo()
 
 def getPopulationDensity(year):
-    img = ee.Image(IMAGE_COLLECTION_ID + '/' + year).select('population-density')
+    img = ee.Image(POPULATION_DENSITY_COLLECTION_ID + '/' + year).select('population-density')
 
-    return reference.getMapId({
+    return img.getMapId({
         'min': '0',
         'max': '500',
         'bands': 'population-density',
         'format': 'png',
-        'palette': 'FFFFFF, 220066',
+        'palette': 'FFFFFF, 600020',
         })
 
 
@@ -239,11 +287,8 @@ def compute_IAV(emissions):
 # https://cloud.google.com/appengine/docs/python/memcache/
 MEMCACHE_EXPIRATION = 60 * 60 * 24
 
-# The ImageCollection of the night-time lights dataset. See:
-# https://earthengine.google.org/#detail/NOAA%2FDMSP-OLS%2FNIGHTTIME_LIGHTS
-IMAGE_COLLECTION_ID = 'users/karenyu/philic'
-#IMAGE_COLLECTION_ID = 'CIESIN/GPWv4/unwpp-adjusted-population-density'
-
+POPULATION_DENSITY_COLLECTION_ID = 'CIESIN/GPWv4/unwpp-adjusted-population-density'
+LANDCOVER_COLLECTION_ID = ''
 
 # Receptor sites
 RECEPTORS = ['Singapore', 'Malaysia', 'Indonesia', 'Population_weighted_SEAsia']

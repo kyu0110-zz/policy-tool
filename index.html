@@ -108,27 +108,30 @@
           <tr valign="top">
               <td>
                   <label class="switch">
-                      <input type="checkbox">
+                      <input type="checkbox" id="landcover">
                       <div class="slider"></div>
                   </label>
               Landcover          
             </td>
             <td>
                 <label class="switch">
-                      <input type="checkbox">
+                      <input type="checkbox" id="emissions">
                       <div class="slider"></div>
                   </label>
             Emissions
             </td>
             <td>
-                <label for="gc">
-                    <input type="radio" name="gclayer" id="sensitivity" value="sensitivity">Sensitivity<br>
-                    <input type="radio" name="gclayer" id="PM" value="PM">PM contribution
+                <label class="switch">
+                    <input type="checkbox" id="geoschem">
+                    <div class="slider"></div>
                 </label>
+                GEOS-Chem<br>
+                <input type="radio" name="gclayer" id="sensitivity" value="sensitivity"><label for="sensitivity">Sensitivity</label><br>
+                    <input type="radio" name="gclayer" id="PM" value="PM"><label for="PM">PM contribution</label>
             </td>
             <td>
                 <label class="switch">
-                      <input type="checkbox">
+                      <input type="checkbox" id="population">
                       <div class="slider"></div>
                   </label>
               Population density

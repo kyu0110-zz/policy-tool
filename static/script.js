@@ -70,8 +70,16 @@ smoke.App = function(mapType, boundaries) {
   $('.scenarioUI .close').click(this.hideScenario.bind(this));
 
   // Changes receptor or year based on UI
-  this.getReceptor(this.map); 
+  $('#get').click(this.newScenario.bind(this));
 
+  // layer UI: landcover toggle
+
+  // layer UI: emissions toggle
+
+  // layer UI: GEOS-Chem toggle
+
+  // layer UI: population density toggle
+  $('#population').click(this.handlePopulationClick.bind(this));
 
   // Register a click handler 
   //var controlUI = 
@@ -255,6 +263,73 @@ smoke.App.prototype.clear = function() {
    $('.panel').hide();
 };
 
+smoke.App.prototype.newScenario = function() {
+    map = this.map;
+
+    $.getJSON(
+      '/details',
+      {
+         receptor: $('#receptor').val(),
+         metYear: $('#metYear').val(),
+         emissYear: $('#emissYear').val()
+      },
+      function(data) {
+        // Get new maptype
+        var mapType = smoke.App.getEeMapType(data.eeMapId, data.eeToken);
+        console.info(data.eeMapId);
+        console.info(data.totalPM);
+
+        // Set total PM equal to extracted value
+        smoke.App.total_PM = data.totalPM;
+        smoke.App.timeseries = JSON.parse(data.timeseries);
+
+        // Overlap new map
+        mapType.setOpacity(0.3);
+    
+        // clear old map layers
+        map.overlayMapTypes.clear();
+    
+        // draw new map layer    
+        map.overlayMapTypes.push(mapType);
+
+        // Redraw charts
+        $('.panel').hide();
+        $('.detailstab').show(); 
+    });
+};
+
+smoke.App.prototype.handlePopulationClick = function() {
+    if (smoke.App.POPULATION) {
+        this.removePopulationLayer();
+        smoke.App.POPULATION = false;
+    } else {
+        this.addPopulationLayer();
+        smoke.App.POPULATION = true;
+    };
+};
+
+smoke.App.prototype.addPopulationLayer = function() {
+    map = this.map;
+
+    $.getJSON(
+       '/layers',
+        {
+            landcover: $('#landcover').is(':checked'),
+            emissions: $('#emissions').is(':checked'),
+            geoschem: $('#geoschem').is(':checked'),
+            population: $('#population').is(':checked')
+        },
+        function(data) {
+            // Get new maptype
+            var mapType = smoke.App.getEeMapType(data.eeMapId, data.eeToken);
+            mapType.setOpacity(0.3);
+            map.overlayMapTypes.push(mapType);
+        });
+};
+
+smoke.App.prototype.removePopulationLayer = function() {
+    this.map.overlayMapTypes.pop();
+};
 
 /** 
  * Adds a menu to the left side
@@ -303,41 +378,6 @@ smoke.App.getEeMapType = function(eeMapId, eeToken) {
 };
 
     
-smoke.App.prototype.getReceptor = function(map) {
-  $('#get').click(function() {
-    $.getJSON(
-      '/details',
-      {
-         receptor: $('#receptor').val(),
-         metYear: $('#metYear').val(),
-         emissYear: $('#emissYear').val()
-      },
-      function(data) {
-        // clear old map layers
-        map.overlayMapTypes.clear();
-
-        // Get new maptype
-        var mapType = smoke.App.getEeMapType(data.eeMapId, data.eeToken);
-      
-        console.info(data.eeMapId);
-        console.info(data.totalPM);
-
-        // Set total PM equal to extracted value
-        smoke.App.total_PM = data.totalPM;
-        smoke.App.timeseries = JSON.parse(data.timeseries);
-
-        // Overlap new map
-        mapType.setOpacity(0.3);
-        map.overlayMapTypes.push(mapType);
-
-        // Redraw charts
-        $('.panel').hide();
-        $('.detailstab').show(); 
-
-    });
-  });
-};
-
 /** @type {string} The Earth Engine API URL. */
 smoke.App.EE_URL = 'https://earthengine.googleapis.com';
 
@@ -352,6 +392,8 @@ smoke.App.DEFAULT_CENTER = {lng: 110.82, lat: 3.35};
 
 smoke.App.total_PM = 0.0;
 smoke.App.timeseries = 0.0;
+
+smoke.App.POPULATION = false;
 
 /**
  * @type {Array} An array of Google Map styles. See:
