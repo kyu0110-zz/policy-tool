@@ -61,25 +61,36 @@ class LayerHandler(webapp2.RequestHandler):
         print('geoschem = ' + geoschem)
         print('population = ' + population)
 
+        mapIds = []
+        tokens = []
+
         if landcover == 'true':
             # add landcover layer to map
             landcover_img = getLandcoverData()
+            mapIds.append(landcover_img['mapid'])
+            tokens.append(landcover_img['token'])
 
         if emissions == 'true':
             # add emissions layer to map
             emissions_img = getEmissions()
+            mapIds.append(emissions_img['mapid'])
+            tokens.append(emissions_img['token'])
 
         if geoschem == 'true':
             # add geoschem layer to map
             geoschem_img =getMonthlyPM('Malaysia', '2006')
+            mapIds.append(geoschem_img['mapid'])
+            tokens.append(geoschem_img['token'])
 
         if population == 'true':
             # add population density layer to map
             pop_img = getPopulationDensity('2010')
+            mapIds.append(pop_img['mapid'])
+            tokens.append(pop_img['token'])
 
         template_values = {
-        'eeMapId': pop_img['mapid'],
-        'eeToken': pop_img['token'],
+        'eeMapId': mapIds,
+        'eeToken': tokens,
         }
         self.response.out.write(json.dumps(template_values))
 
@@ -167,7 +178,18 @@ def getLandcoverData():
     return 0
 
 def getEmissions():
-    return 0
+    image = ee.Image('users/tl2581/gfedv4s/DM_200101').select('b1')
+    mask = image.gt(ee.Image(1)).int()
+    maskedImage = image.updateMask(mask)
+
+    return maskedImage.getMapId({
+        'min': '0',
+        'max': '50000',
+        'bands': 'b1',
+        'format': 'png',
+        'palette': 'FFFFFF, AA0000',
+        })
+
 
 def getDailyPM(receptor, year):
     """Returns daily PM."""

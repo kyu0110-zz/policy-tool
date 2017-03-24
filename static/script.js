@@ -75,6 +75,7 @@ smoke.App = function(mapType, boundaries) {
   // layer UI: landcover toggle
 
   // layer UI: emissions toggle
+  $('#emissions').click(this.handleEmissionsClick.bind(this));
 
   // layer UI: GEOS-Chem toggle
 
@@ -298,17 +299,21 @@ smoke.App.prototype.newScenario = function() {
     });
 };
 
-smoke.App.prototype.handlePopulationClick = function() {
-    if (smoke.App.POPULATION) {
-        this.removePopulationLayer();
-        smoke.App.POPULATION = false;
+smoke.App.prototype.handleEmissionsClick = function() {
+    var ind = 0;
+    if (smoke.App.LANDCOVER) {ind = ind+1};
+
+    if (smoke.App.EMISSIONS) {
+        console.info(ind);
+        this.removeEmissionsLayer(ind);
+        smoke.App.EMISSIONS = false;
     } else {
-        this.addPopulationLayer();
-        smoke.App.POPULATION = true;
+        this.addEmissionsLayer(ind);
+        smoke.App.EMISSIONS = true;
     };
 };
 
-smoke.App.prototype.addPopulationLayer = function() {
+smoke.App.prototype.addEmissionsLayer = function(ind) {
     map = this.map;
 
     $.getJSON(
@@ -321,14 +326,53 @@ smoke.App.prototype.addPopulationLayer = function() {
         },
         function(data) {
             // Get new maptype
-            var mapType = smoke.App.getEeMapType(data.eeMapId, data.eeToken);
+            var mapType = smoke.App.getEeMapType(data.eeMapId[ind], data.eeToken[ind]);
             mapType.setOpacity(0.3);
             map.overlayMapTypes.push(mapType);
         });
 };
 
-smoke.App.prototype.removePopulationLayer = function() {
-    this.map.overlayMapTypes.pop();
+smoke.App.prototype.removeEmissionsLayer = function(ind) {
+    this.map.overlayMapTypes.removeAt(ind);
+};
+
+smoke.App.prototype.handlePopulationClick = function(ind) {
+    var ind = 0;
+    if (smoke.App.LANDCOVER) {ind = ind+1};
+    if (smoke.App.EMISSIONS) {ind = ind+1};
+    if (smoke.App.GEOSCHEM) {ind = ind+1};
+
+    if (smoke.App.POPULATION) {
+        this.removePopulationLayer(ind);
+        smoke.App.POPULATION = false;
+    } else {
+
+        this.addPopulationLayer(ind);
+        smoke.App.POPULATION = true;
+    };
+};
+
+smoke.App.prototype.addPopulationLayer = function(ind) {
+    map = this.map;
+
+    $.getJSON(
+       '/layers',
+        {
+            landcover: $('#landcover').is(':checked'),
+            emissions: $('#emissions').is(':checked'),
+            geoschem: $('#geoschem').is(':checked'),
+            population: $('#population').is(':checked')
+        },
+        function(data) {
+            // Get new maptype
+            var mapType = smoke.App.getEeMapType(data.eeMapId[ind], data.eeToken[ind]);
+            mapType.setOpacity(0.3);
+            map.overlayMapTypes.push(mapType);
+        });
+};
+
+smoke.App.prototype.removePopulationLayer = function(ind) {
+    this.map.overlayMapTypes.removeAt(ind);
 };
 
 /** 
@@ -394,6 +438,9 @@ smoke.App.total_PM = 0.0;
 smoke.App.timeseries = 0.0;
 
 smoke.App.POPULATION = false;
+smoke.App.GEOSCHEM = true;
+smoke.App.EMISSIONS = false;
+smoke.App.LANDCOVER = false;
 
 /**
  * @type {Array} An array of Google Map styles. See:
