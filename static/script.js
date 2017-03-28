@@ -26,7 +26,7 @@ smoke.boot = function(eeMapId, eeToken, boundaries, timeseries) {
 
   // Create the Trendy Lights app.
   google.setOnLoadCallback(function() {
-    var mapType = smoke.App.getEeMapType(JSON.parse(eeMapId)[2], JSON.parse(eeToken)[2]);
+    var mapType = smoke.App.getEeMapType(JSON.parse(eeMapId)[3], JSON.parse(eeToken)[3]);
     var app = new smoke.App(mapType, JSON.parse(boundaries));
     
     // set the timesereies values for the chart
@@ -84,6 +84,8 @@ smoke.App = function(mapType, boundaries) {
 
   // layer UI: GEOS-Chem toggle
   $('#geoschem').click(this.handleLayerClick.bind(this, "GEOSCHEM"));
+  $('#sensitivity').click(this.handleLayerSwitchClick.bind(this, "GEOSCHEM"));
+  $('#PM').click(this.handleLayerSwitchClick.bind(this, "GEOSCHEM"));
 
   // layer UI: population density toggle
   $('#population').click(this.handleLayerClick.bind(this, "POPULATION"));
@@ -308,7 +310,6 @@ smoke.App.prototype.newScenario = function() {
 smoke.App.prototype.handleLayerClick = function(layername) {
     // get index of layer in layers array
     var ind = smoke.App.layers.indexOf(layername);
-    console.info(ind);
     console.info(smoke.App.layers);
 
     // if layer is already in array
@@ -327,9 +328,13 @@ smoke.App.prototype.addLayer = function(layername) {
     } else if (layername == "EMISSIONS") {
         id_index = 1;
     } else if (layername == "GEOSCHEM") {
-        id_index = 2;
+        if ($('#sensitivity').is(':checked')) {
+            id_index = 2;
+        } else {
+            id_index = 3;
+        }
     } else if (layername == "POPULATION") {
-        id_index = 3;
+        id_index = 4;
     };
 
     var mapType = smoke.App.getEeMapType(smoke.App.mapids[id_index], smoke.App.tokens[id_index]);
@@ -339,6 +344,24 @@ smoke.App.prototype.addLayer = function(layername) {
 
 smoke.App.prototype.removeLayer = function(ind) {
     this.map.overlayMapTypes.removeAt(ind);
+};
+
+smoke.App.prototype.handleLayerSwitchClick = function(layername) {
+    // remove old layer
+    var ind = smoke.App.layers.indexOf(layername);
+    console.info(ind);
+    console.info(smoke.App.layers);
+
+    // remove old layer only if layer is present, otherwise do nothing
+    if (ind > -1) {
+        this.removeLayer(ind);
+        smoke.App.layers.splice(ind, 1);
+
+        // add new layer
+        this.addLayer(layername);
+        smoke.App.layers.push(layername);
+    };
+
 };
 
 /** 

@@ -42,8 +42,15 @@ class MainHandler(webapp2.RequestHandler):
     mapIds.append(emissions_img['mapid'])
     tokens.append(emissions_img['token'])
 
-    # third layer is PM
-    pm = getMonthlyPM('Malaysia', 2008)
+    # third layer is sensitivities
+    sensitivities = getSensitivity('Malaysia', 2008)
+    meansens = sensitivities.mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
+    mapid = GetMapId(meansens, maxVal=0.02, maskValue=0.0005)
+    mapIds.append(mapid['mapid'])
+    tokens.append(mapid['token'])
+    
+    # fourth layer is PM
+    pm = getMonthlyPM(sensitivities)
 
     # get pm exposure for every image
     exposure = getExposureTimeSeries(pm)
@@ -53,7 +60,7 @@ class MainHandler(webapp2.RequestHandler):
     mapIds.append(mapid['mapid'])
     tokens.append(mapid['token'])
 
-    # fourth layer is population
+    # fifth layer is population
     pop_img = getPopulationDensity('2010')
     mapIds.append(pop_img['mapid'])
     tokens.append(pop_img['token'])
@@ -131,14 +138,14 @@ app = webapp2.WSGIApplication([
 ###############################################################################
 
 
-def GetMapId(image, maskValue=0.000000000001):
+def GetMapId(image, maxVal=0.01, maskValue=0.000000000001):
     """Returns the MapID for a given image."""
     mask = image.gt(ee.Image(maskValue)).int()
     maskedImage = image.updateMask(mask)
 
     return maskedImage.getMapId({
         'min': '0',
-        'max': '0.01',
+        'max': str(maxVal),
         'bands': 'b1',
         'format': 'png',
         'palette': 'FFFFFF, 220066',
@@ -177,9 +184,17 @@ def getEmissions():
         })
 
 
-def getDailyPM(receptor, year):
+def getSensitivity(receptor, year, monthly=True):
+    """Gets sensitivity for a particular receptor and meteorological year."""
+    if monthly:
+        sensitivities = ee.ImageCollection('users/karenyu/'+receptor+'_monthly_sensitivities').filterDate(str(year)+'-01-01', str(year)+'-12-31').sort('system:time_start', True) # sort in ascending order
+    else:
+        sensitivities = ee.ImageCollection('users/karenyu/'+receptor+'_sensitivities').filterDate(str(year)+'-01-01', str(year)+'-12-31')
+    return sensitivities
+
+
+def getDailyPM(sensitivities):
     """Returns daily PM."""
-    sensitivities = ee.ImageCollection('users/karenyu/'+receptor+'_sensitivities').filterDate(str(year)+'-01-01', str(year)+'-12-31')
 
     # get emissions
     emiss = ee.Image('users/karenyu/placeholder_emissions')
@@ -215,9 +230,8 @@ def getDailyPM(receptor, year):
 
 
 
-def getMonthlyPM(receptor, year):
+def getMonthlyPM(sensitivities):
     """Returns monthly PM"""
-    sensitivities = ee.ImageCollection('users/karenyu/'+receptor+'_monthly_sensitivities').filterDate(str(year)+'-01-01', str(year)+'-12-31').sort('system:time_start', True) # sort in ascending order
 
     # get emissions
     emiss = ee.Image('users/karenyu/placeholder_emissions')
