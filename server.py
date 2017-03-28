@@ -38,9 +38,10 @@ class MainHandler(webapp2.RequestHandler):
     tokens.append(landcover_img['token'])
 
     # second layer is emissions
-    emissions_img = getEmissions()
-    mapIds.append(emissions_img['mapid'])
-    tokens.append(emissions_img['token'])
+    emissions = getEmissions()
+    mapid = GetMapId(emissions, maxVal=5e5, maskValue=1, color='FFFFFF, AA0000')
+    mapIds.append(mapid['mapid'])
+    tokens.append(mapid['token'])
 
     # third layer is sensitivities
     sensitivities = getSensitivity('Malaysia', 2008)
@@ -56,7 +57,7 @@ class MainHandler(webapp2.RequestHandler):
     exposure = getExposureTimeSeries(pm)
 
     totPM = pm.sum().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
-    mapid = GetMapId(totPM)
+    mapid = GetMapId(totPM, maxVal=1e13)
     mapIds.append(mapid['mapid'])
     tokens.append(mapid['token'])
 
@@ -138,7 +139,7 @@ app = webapp2.WSGIApplication([
 ###############################################################################
 
 
-def GetMapId(image, maxVal=0.01, maskValue=0.000000000001):
+def GetMapId(image, maxVal=0.1, maskValue=0.000000000001, color='FFFFFF, 220066'):
     """Returns the MapID for a given image."""
     mask = image.gt(ee.Image(maskValue)).int()
     maskedImage = image.updateMask(mask)
@@ -148,7 +149,7 @@ def GetMapId(image, maxVal=0.01, maskValue=0.000000000001):
         'max': str(maxVal),
         'bands': 'b1',
         'format': 'png',
-        'palette': 'FFFFFF, 220066',
+        'palette': color,
         })
 
 
@@ -171,17 +172,47 @@ def getLandcoverData():
         })
 
 def getEmissions():
-    image = ee.Image('users/tl2581/gfedv4s/DM_200101').select('b1')
-    mask = image.gt(ee.Image(1)).int()
-    maskedImage = image.updateMask(mask)
+    """Gets the dry matter emissions from GFED and converts to oc/bc"""
 
-    return maskedImage.getMapId({
-        'min': '0',
-        'max': '50000',
-        'bands': 'b1',
-        'format': 'png',
-        'palette': 'FFFFFF, AA0000',
-        })
+    monthly_dm = ee.Image('users/tl2581/gfedv4s/DM_200101').select('b1')
+
+    # map comes from IAV file
+    #monthly_dm = (emissions * map)   # Gg to Tg 
+
+    land_types = ['PET', 'DEF', 'AGRI', 'SAV', 'TEMP', 'PLT']
+    oc_ef = [2.157739E+23, 2.157739E+23, 2.082954E+23, 1.612156E+23, 1.885199E+23, 1.885199E+23]
+    bc_ef = [2.835829E+22, 2.835829E+22, 2.113069E+22, 2.313836E+22, 2.574832E+22, 2.574832E+22]
+
+    total_oc = ee.Image(0).rename(['b1'])
+    total_bc = ee.Image(0).rename(['b1'])
+
+    for land_type in range(0, len(land_types)): 
+        oc_scale = oc_ef[land_type] * 6.022e-23 * 12  # g OC
+        bc_scale = bc_ef[land_type] * 6.022e-23 * 12  # g BC
+
+        oc_fine = monthly_dm.multiply(ee.Image(oc_scale))
+        bc_fine = monthly_dm.multiply(ee.Image(bc_scale))
+
+        # interpolate to current grid (is this necessary in earth engine?)
+
+        # sum up the total for each type
+        total_oc = total_oc.add(oc_fine)
+        total_bc = total_bc.add(bc_fine)
+
+    # split into GEOS-Chem hydrophobic and hydrophilic fractions, convert g to kg
+    ocpo = total_oc.multiply(ee.Image(0.5 * 1.0e3 * 2.1))
+    ocpi = total_oc.multiply(ee.Image(0.5 * 1.0e3 * 2.1))
+    bcpo = total_bc.multiply(ee.Image(0.8 * 1.0e3))
+    bcpi = total_bc.multiply(ee.Image(0.2 * 1.0e3))
+
+    # compute daily averages from the monthly total
+    emissions_philic = ocpi.add(bcpi).multiply(31.0 * 6.0)
+    emissions_phobic = ocpo.add(bcpo).multiply(31.0 * 6.0)
+
+    emissions = emissions_philic.addBands(emissions_phobic, ['b1']).rename(['b1', 'b2'])
+    
+    return emissions
+
 
 
 def getSensitivity(receptor, year, monthly=True):
@@ -234,7 +265,8 @@ def getMonthlyPM(sensitivities):
     """Returns monthly PM"""
 
     # get emissions
-    emiss = ee.Image('users/karenyu/placeholder_emissions')
+    #emiss = ee.Image('users/karenyu/placeholder_emissions')
+    emiss = getEmissions()
 
     first = ee.List([])
 
