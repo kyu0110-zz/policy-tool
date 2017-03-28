@@ -26,11 +26,15 @@ smoke.boot = function(eeMapId, eeToken, boundaries, timeseries) {
 
   // Create the Trendy Lights app.
   google.setOnLoadCallback(function() {
-    var mapType = smoke.App.getEeMapType(eeMapId, eeToken);
+    var mapType = smoke.App.getEeMapType(JSON.parse(eeMapId)[2], JSON.parse(eeToken)[2]);
     var app = new smoke.App(mapType, JSON.parse(boundaries));
     
     // set the timesereies values for the chart
     smoke.App.timeseries = JSON.parse(timeseries);
+
+    // save the map layers
+    smoke.App.mapids = JSON.parse(eeMapId);
+    smoke.App.tokens = JSON.parse(eeToken);
   });
 };
 
@@ -73,14 +77,16 @@ smoke.App = function(mapType, boundaries) {
   $('#get').click(this.newScenario.bind(this));
 
   // layer UI: landcover toggle
+  $('#landcover').click(this.handleLayerClick.bind(this, "LANDCOVER"));
 
   // layer UI: emissions toggle
-  $('#emissions').click(this.handleEmissionsClick.bind(this));
+  $('#emissions').click(this.handleLayerClick.bind(this, "EMISSIONS"));
 
   // layer UI: GEOS-Chem toggle
+  $('#geoschem').click(this.handleLayerClick.bind(this, "GEOSCHEM"));
 
   // layer UI: population density toggle
-  $('#population').click(this.handlePopulationClick.bind(this));
+  $('#population').click(this.handleLayerClick.bind(this, "POPULATION"));
 
   // Register a click handler 
   //var controlUI = 
@@ -299,79 +305,39 @@ smoke.App.prototype.newScenario = function() {
     });
 };
 
-smoke.App.prototype.handleEmissionsClick = function() {
-    var ind = 0;
-    if (smoke.App.LANDCOVER) {ind = ind+1};
+smoke.App.prototype.handleLayerClick = function(layername) {
+    // get index of layer in layers array
+    var ind = smoke.App.layers.indexOf(layername);
+    console.info(ind);
+    console.info(smoke.App.layers);
 
-    if (smoke.App.EMISSIONS) {
-        console.info(ind);
-        this.removeEmissionsLayer(ind);
-        smoke.App.EMISSIONS = false;
-    } else {
-        this.addEmissionsLayer(ind);
-        smoke.App.EMISSIONS = true;
+    // if layer is already in array
+    if (ind > -1) {
+        this.removeLayer(ind);
+        smoke.App.layers.splice(ind, 1);
+    } else {  // layer not in array
+        this.addLayer(layername);
+        smoke.App.layers.push(layername);
     };
 };
 
-smoke.App.prototype.addEmissionsLayer = function(ind) {
-    map = this.map;
-
-    $.getJSON(
-       '/layers',
-        {
-            landcover: $('#landcover').is(':checked'),
-            emissions: $('#emissions').is(':checked'),
-            geoschem: $('#geoschem').is(':checked'),
-            population: $('#population').is(':checked')
-        },
-        function(data) {
-            // Get new maptype
-            var mapType = smoke.App.getEeMapType(data.eeMapId[ind], data.eeToken[ind]);
-            mapType.setOpacity(0.3);
-            map.overlayMapTypes.push(mapType);
-        });
-};
-
-smoke.App.prototype.removeEmissionsLayer = function(ind) {
-    this.map.overlayMapTypes.removeAt(ind);
-};
-
-smoke.App.prototype.handlePopulationClick = function(ind) {
-    var ind = 0;
-    if (smoke.App.LANDCOVER) {ind = ind+1};
-    if (smoke.App.EMISSIONS) {ind = ind+1};
-    if (smoke.App.GEOSCHEM) {ind = ind+1};
-
-    if (smoke.App.POPULATION) {
-        this.removePopulationLayer(ind);
-        smoke.App.POPULATION = false;
-    } else {
-
-        this.addPopulationLayer(ind);
-        smoke.App.POPULATION = true;
+smoke.App.prototype.addLayer = function(layername) {
+    if (layername == "LANDCOVER") {
+        id_index = 0;
+    } else if (layername == "EMISSIONS") {
+        id_index = 1;
+    } else if (layername == "GEOSCHEM") {
+        id_index = 2;
+    } else if (layername == "POPULATION") {
+        id_index = 3;
     };
+
+    var mapType = smoke.App.getEeMapType(smoke.App.mapids[id_index], smoke.App.tokens[id_index]);
+    mapType.setOpacity(0.3);
+    this.map.overlayMapTypes.push(mapType);
 };
 
-smoke.App.prototype.addPopulationLayer = function(ind) {
-    map = this.map;
-
-    $.getJSON(
-       '/layers',
-        {
-            landcover: $('#landcover').is(':checked'),
-            emissions: $('#emissions').is(':checked'),
-            geoschem: $('#geoschem').is(':checked'),
-            population: $('#population').is(':checked')
-        },
-        function(data) {
-            // Get new maptype
-            var mapType = smoke.App.getEeMapType(data.eeMapId[ind], data.eeToken[ind]);
-            mapType.setOpacity(0.3);
-            map.overlayMapTypes.push(mapType);
-        });
-};
-
-smoke.App.prototype.removePopulationLayer = function(ind) {
+smoke.App.prototype.removeLayer = function(ind) {
     this.map.overlayMapTypes.removeAt(ind);
 };
 
@@ -436,6 +402,9 @@ smoke.App.DEFAULT_CENTER = {lng: 110.82, lat: 3.35};
 
 smoke.App.total_PM = 0.0;
 smoke.App.timeseries = 0.0;
+smoke.App.mapids;
+smoke.App.tokens;
+smoke.App.layers = ["GEOSCHEM"];
 
 smoke.App.POPULATION = false;
 smoke.App.GEOSCHEM = true;

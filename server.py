@@ -27,6 +27,22 @@ class MainHandler(webapp2.RequestHandler):
 
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
+
+    # a list of ids for different layers
+    mapIds = []
+    tokens = []
+
+    # first layer is land cover
+    landcover_img = getLandcoverData()
+    mapIds.append(landcover_img['mapid'])
+    tokens.append(landcover_img['token'])
+
+    # second layer is emissions
+    emissions_img = getEmissions()
+    mapIds.append(emissions_img['mapid'])
+    tokens.append(emissions_img['token'])
+
+    # third layer is PM
     pm = getMonthlyPM('Malaysia', 2008)
 
     # get pm exposure for every image
@@ -34,65 +50,26 @@ class MainHandler(webapp2.RequestHandler):
 
     totPM = pm.sum().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
     mapid = GetMapId(totPM)
+    mapIds.append(mapid['mapid'])
+    tokens.append(mapid['token'])
+
+    # fourth layer is population
+    pop_img = getPopulationDensity('2010')
+    mapIds.append(pop_img['mapid'])
+    tokens.append(pop_img['token'])
+
+    print(mapIds)
 
     # Compute the totals for different provinces.
 
     template_values = {
-        'eeMapId': mapid['mapid'],
-        'eeToken': mapid['token'],
+        'eeMapId': json.dumps(mapIds),
+        'eeToken': json.dumps(tokens),
         'boundaries': json.dumps(REGION_IDS),
         'timeseries': json.dumps(exposure)
     }
     template = JINJA2_ENVIRONMENT.get_template('index.html')
     self.response.out.write(template.render(template_values))
-
-
-class LayerHandler(webapp2.RequestHandler):
-    """A servlet to handle requests for different map layers."""
-
-    def get(self):
-        landcover = self.request.get('landcover')
-        emissions = self.request.get('emissions')
-        geoschem = self.request.get('geoschem')
-        population = self.request.get('population')
-
-        print('Landcover = ' + landcover)
-        print('Emissions = ' + emissions)
-        print('geoschem = ' + geoschem)
-        print('population = ' + population)
-
-        mapIds = []
-        tokens = []
-
-        if landcover == 'true':
-            # add landcover layer to map
-            landcover_img = getLandcoverData()
-            mapIds.append(landcover_img['mapid'])
-            tokens.append(landcover_img['token'])
-
-        if emissions == 'true':
-            # add emissions layer to map
-            emissions_img = getEmissions()
-            mapIds.append(emissions_img['mapid'])
-            tokens.append(emissions_img['token'])
-
-        if geoschem == 'true':
-            # add geoschem layer to map
-            geoschem_img =getMonthlyPM('Malaysia', '2006')
-            mapIds.append(geoschem_img['mapid'])
-            tokens.append(geoschem_img['token'])
-
-        if population == 'true':
-            # add population density layer to map
-            pop_img = getPopulationDensity('2010')
-            mapIds.append(pop_img['mapid'])
-            tokens.append(pop_img['token'])
-
-        template_values = {
-        'eeMapId': mapIds,
-        'eeToken': tokens,
-        }
-        self.response.out.write(json.dumps(template_values))
 
 
 class DetailsHandler(webapp2.RequestHandler):
@@ -144,7 +121,6 @@ class DetailsHandler(webapp2.RequestHandler):
 # http://webapp-improved.appspot.com/tutorials/quickstart.html
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
-    ('/layers', LayerHandler),
     ('/details', DetailsHandler)
 ], debug=True)
 
@@ -175,7 +151,17 @@ def changeLayers():
 
 
 def getLandcoverData():
-    return 0
+    gfcImage = ee.Image('UMD/hansen/global_forest_change_2015').select('treecover2000');
+    mask = gfcImage.gt(ee.Image(0.001)).int() 
+    maskedImage = gfcImage.updateMask(mask);
+    
+    return maskedImage.getMapId({
+        'min': '0',
+        'max': '100', 
+        'bands': 'treecover2000',
+        'format': 'png',
+        'palette': 'FFFFFF, 00AA00'
+        })
 
 def getEmissions():
     image = ee.Image('users/tl2581/gfedv4s/DM_200101').select('b1')
