@@ -38,8 +38,8 @@ class MainHandler(webapp2.RequestHandler):
     tokens.append(landcover_img['token'])
 
     # second layer is emissions
-    emissions = getEmissions()
-    mapid = GetMapId(emissions, maxVal=5e5, maskValue=1, color='FFFFFF, AA0000')
+    emissions = getEmissions(2008)
+    mapid = GetMapId(emissions.mean(), maxVal=5e5, maskValue=1, color='FFFFFF, AA0000')
     mapIds.append(mapid['mapid'])
     tokens.append(mapid['token'])
 
@@ -51,7 +51,7 @@ class MainHandler(webapp2.RequestHandler):
     tokens.append(mapid['token'])
     
     # fourth layer is PM
-    pm = getMonthlyPM(sensitivities)
+    pm = getMonthlyPM(sensitivities, emissions)
 
     # get pm exposure for every image
     exposure = getExposureTimeSeries(pm)
@@ -102,8 +102,8 @@ class DetailsHandler(webapp2.RequestHandler):
             tokens.append(landcover_img['token'])
 
             # second layer is emissions
-            emissions = getEmissions()
-            mapid = GetMapId(emissions, maxVal=5e5, maskValue=1, color='FFFFFF, AA0000')
+            emissions = getEmissions(emissYear)
+            mapid = GetMapId(emissions.mean(), maxVal=5e5, maskValue=1, color='FFFFFF, AA0000')
             mapIds.append(mapid['mapid'])
             tokens.append(mapid['token'])
 
@@ -115,7 +115,7 @@ class DetailsHandler(webapp2.RequestHandler):
             tokens.append(mapid['token'])
     
             # fourth layer is PM
-            pm = getMonthlyPM(sensitivities)
+            pm = getMonthlyPM(sensitivities, emissions)
 
             # get pm exposure for every image
             exposure = getExposureTimeSeries(pm)
@@ -204,46 +204,53 @@ def getLandcoverData():
         'palette': 'FFFFFF, 00AA00'
         })
 
-def getEmissions():
+def getEmissions(year):
     """Gets the dry matter emissions from GFED and converts to oc/bc"""
 
-    monthly_dm = ee.Image('users/tl2581/gfedv4s/DM_200101').select('b1')
+    monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.gte('system:index', 'DM_'+str(year)+'01')).filter(ee.Filter.lte('system:index', 'DM_'+str(year)+'12'))
+    #monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filterDate('2008-01-01', '2009-01-01').sort('system:time_start', True) 
+    #monthly_dm = ee.Image('users/tl2581/gfedv4s/DM_200801').select('b1')
 
     # map comes from IAV file
     #monthly_dm = (emissions * map)   # Gg to Tg 
 
-    land_types = ['PET', 'DEF', 'AGRI', 'SAV', 'TEMP', 'PLT']
-    oc_ef = [2.157739E+23, 2.157739E+23, 2.082954E+23, 1.612156E+23, 1.885199E+23, 1.885199E+23]
-    bc_ef = [2.835829E+22, 2.835829E+22, 2.113069E+22, 2.313836E+22, 2.574832E+22, 2.574832E+22]
-
-    total_oc = ee.Image(0).rename(['b1'])
-    total_bc = ee.Image(0).rename(['b1'])
-
-    for land_type in range(0, len(land_types)): 
-        oc_scale = oc_ef[land_type] * 6.022e-23 * 12  # g OC
-        bc_scale = bc_ef[land_type] * 6.022e-23 * 12  # g BC
-
-        oc_fine = monthly_dm.multiply(ee.Image(oc_scale))
-        bc_fine = monthly_dm.multiply(ee.Image(bc_scale))
-
-        # interpolate to current grid (is this necessary in earth engine?)
-
-        # sum up the total for each type
-        total_oc = total_oc.add(oc_fine)
-        total_bc = total_bc.add(bc_fine)
-
-    # split into GEOS-Chem hydrophobic and hydrophilic fractions, convert g to kg
-    ocpo = total_oc.multiply(ee.Image(0.5 * 1.0e3 * 2.1))
-    ocpi = total_oc.multiply(ee.Image(0.5 * 1.0e3 * 2.1))
-    bcpo = total_bc.multiply(ee.Image(0.8 * 1.0e3))
-    bcpi = total_bc.multiply(ee.Image(0.2 * 1.0e3))
-
-    # compute daily averages from the monthly total
-    emissions_philic = ocpi.add(bcpi).multiply(1.0/(31.0 * 6.0))
-    emissions_phobic = ocpo.add(bcpo).multiply(1.0/(31.0 * 6.0))
-
-    emissions = emissions_philic.addBands(emissions_phobic, ['b1']).rename(['b1', 'b2'])
+    # function to compute oc and bc emissions from dm
+    def get_oc_bc(dm_emissions):
     
+        land_types = ['PET', 'DEF', 'AGRI', 'SAV', 'TEMP', 'PLT']
+        oc_ef = [2.157739E+23, 2.157739E+23, 2.082954E+23, 1.612156E+23, 1.885199E+23, 1.885199E+23]
+        bc_ef = [2.835829E+22, 2.835829E+22, 2.113069E+22, 2.313836E+22, 2.574832E+22, 2.574832E+22]
+
+        total_oc = ee.Image(0).rename(['b1'])
+        total_bc = ee.Image(0).rename(['b1'])
+
+        for land_type in range(0, len(land_types)): 
+            oc_scale = oc_ef[land_type] * 6.022e-23 * 12  # g OC
+            bc_scale = bc_ef[land_type] * 6.022e-23 * 12  # g BC
+
+            oc_fine = dm_emissions.multiply(ee.Image(oc_scale))
+            bc_fine = dm_emissions.multiply(ee.Image(bc_scale))
+
+            # interpolate to current grid (is this necessary in earth engine?)
+
+            # sum up the total for each type
+            total_oc = total_oc.add(oc_fine)
+            total_bc = total_bc.add(bc_fine)
+
+        # split into GEOS-Chem hydrophobic and hydrophilic fractions, convert g to kg
+        ocpo = total_oc.multiply(ee.Image(0.5 * 1.0e3 * 2.1))
+        ocpi = total_oc.multiply(ee.Image(0.5 * 1.0e3 * 2.1))
+        bcpo = total_bc.multiply(ee.Image(0.8 * 1.0e3))
+        bcpi = total_bc.multiply(ee.Image(0.2 * 1.0e3))
+
+        # compute daily averages from the monthly total
+        emissions_philic = ocpi.add(bcpi).multiply(1.0/(31.0 * 6.0))
+        emissions_phobic = ocpo.add(bcpo).multiply(1.0/(31.0 * 6.0))
+
+        return emissions_philic.addBands(emissions_phobic, ['b1']).rename(['b1', 'b2'])
+
+    emissions = monthly_dm.map(get_oc_bc)
+
     return emissions
 
 
@@ -294,24 +301,26 @@ def getDailyPM(sensitivities):
 
 
 
-def getMonthlyPM(sensitivities):
+def getMonthlyPM(sensitivities, emiss):
     """Returns monthly PM"""
 
     # get emissions
     #emiss = ee.Image('users/karenyu/placeholder_emissions')
-    emiss = getEmissions()
 
-    first = ee.List([])
+    combined_data = sensitivities.toList(12).zip(emiss.toList(12))
 
-    def computePM(sensitivity, pm_values):
-        pm_philic = sensitivity.select('b1').multiply(emiss.select('b1')).multiply(ee.Image(SCALE_FACTOR/31.0))
-        pm_phobic = sensitivity.select('b2').multiply(emiss.select('b2')).multiply(ee.Image(SCALE_FACTOR/31.0))
-        return ee.List(pm_values).add(pm_philic.add(pm_phobic).set('system:footprint', sensitivity.get('system:footprint')))
+    def computePM(data):
+        sensitivity = ee.Image(ee.List(data).get(0))
+        emission = ee.Image(ee.List(data).get(1))
+        pm_philic = sensitivity.select('b1').multiply(emission.select('b1')).multiply(ee.Image(SCALE_FACTOR/31.0))
+        pm_phobic = sensitivity.select('b2').multiply(emission.select('b2')).multiply(ee.Image(SCALE_FACTOR/31.0))
+        return pm_philic.add(pm_phobic).set('system:footprint', sensitivity.get('system:footprint'))
 
     # iterate over all files
-    monthly_pm = sensitivities.iterate(computePM, first)
+    monthly_pm = combined_data.map(computePM)
 
     return ee.ImageCollection(ee.List(monthly_pm))
+    #return monthly_pm
 
 
 def getExposureTimeSeries(imageCollection):
