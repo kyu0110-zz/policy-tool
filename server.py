@@ -92,14 +92,47 @@ class DetailsHandler(webapp2.RequestHandler):
         print 'Met year = ' + metYear
         print 'Emissions year = ' + emissYear
         if receptor in RECEPTORS:
-            pm = getMonthlyPM(receptor, metYear)
-            exposure = getExposureTimeSeries(pm)
-            totPM = pm.sum().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
-            content = GetMapId(totPM)
-        else:
-            content = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
+            # a list of ids for different layers
+            mapIds = []
+            tokens = []
 
-        print(content)
+            # first layer is land cover
+            landcover_img = getLandcoverData()
+            mapIds.append(landcover_img['mapid'])
+            tokens.append(landcover_img['token'])
+
+            # second layer is emissions
+            emissions = getEmissions()
+            mapid = GetMapId(emissions, maxVal=5e5, maskValue=1, color='FFFFFF, AA0000')
+            mapIds.append(mapid['mapid'])
+            tokens.append(mapid['token'])
+
+            # third layer is sensitivities
+            sensitivities = getSensitivity(receptor, metYear)
+            meansens = sensitivities.mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
+            mapid = GetMapId(meansens, maxVal=0.02, maskValue=0.0005)
+            mapIds.append(mapid['mapid'])
+            tokens.append(mapid['token'])
+    
+            # fourth layer is PM
+            pm = getMonthlyPM(sensitivities)
+
+            # get pm exposure for every image
+            exposure = getExposureTimeSeries(pm)
+
+            totPM = pm.sum().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
+            mapid = GetMapId(totPM, maxVal=1e5)
+            mapIds.append(mapid['mapid'])
+            tokens.append(mapid['token'])
+
+            # fifth layer is population
+            pop_img = getPopulationDensity('2010')
+            mapIds.append(pop_img['mapid'])
+            tokens.append(pop_img['token'])
+
+        else:
+            mapIds  = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
+            tokens = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
 
         ## Compute the total
         proj = ee.Image(pm.first()).select('b1').projection()
@@ -107,8 +140,8 @@ class DetailsHandler(webapp2.RequestHandler):
 
         ## Make new map 
         template_values = {
-            'eeMapId': content['mapid'],
-            'eeToken': content['token'],
+            'eeMapId': json.dumps(mapIds),
+            'eeToken': json.dumps(tokens),
             'totalPM': totalPM['b1'],
             'timeseries': json.dumps(exposure)
 

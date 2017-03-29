@@ -284,9 +284,13 @@ smoke.App.prototype.newScenario = function() {
       },
       function(data) {
         // Get new maptype
-        var mapType = smoke.App.getEeMapType(data.eeMapId, data.eeToken);
+        var mapType = smoke.App.getEeMapType(JSON.parse(data.eeMapId)[3], JSON.parse(data.eeToken)[3]);
         console.info(data.eeMapId);
         console.info(data.totalPM);
+
+        // Set other map values
+        smoke.App.mapids = JSON.parse(data.eeMapId);
+        smoke.App.tokens = JSON.parse(data.eeToken);
 
         // Set total PM equal to extracted value
         smoke.App.total_PM = data.totalPM;
