@@ -57,7 +57,7 @@ class MainHandler(webapp2.RequestHandler):
     exposure = getExposureTimeSeries(pm)
 
     totPM = pm.sum().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
-    mapid = GetMapId(totPM, maxVal=1e13)
+    mapid = GetMapId(totPM, maxVal=1e5)
     mapIds.append(mapid['mapid'])
     tokens.append(mapid['token'])
 
@@ -206,8 +206,8 @@ def getEmissions():
     bcpi = total_bc.multiply(ee.Image(0.2 * 1.0e3))
 
     # compute daily averages from the monthly total
-    emissions_philic = ocpi.add(bcpi).multiply(31.0 * 6.0)
-    emissions_phobic = ocpo.add(bcpo).multiply(31.0 * 6.0)
+    emissions_philic = ocpi.add(bcpi).multiply(1.0/(31.0 * 6.0))
+    emissions_phobic = ocpo.add(bcpo).multiply(1.0/(31.0 * 6.0))
 
     emissions = emissions_philic.addBands(emissions_phobic, ['b1']).rename(['b1', 'b2'])
     
@@ -271,8 +271,8 @@ def getMonthlyPM(sensitivities):
     first = ee.List([])
 
     def computePM(sensitivity, pm_values):
-        pm_philic = sensitivity.select('b1').multiply(emiss.select('b1'))
-        pm_phobic = sensitivity.select('b2').multiply(emiss.select('b2'))
+        pm_philic = sensitivity.select('b1').multiply(emiss.select('b1')).multiply(ee.Image(SCALE_FACTOR/31.0))
+        pm_phobic = sensitivity.select('b2').multiply(emiss.select('b2')).multiply(ee.Image(SCALE_FACTOR/31.0))
         return ee.List(pm_values).add(pm_philic.add(pm_phobic).set('system:footprint', sensitivity.get('system:footprint')))
 
     # iterate over all files
