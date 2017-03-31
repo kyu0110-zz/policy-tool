@@ -125,7 +125,10 @@ def GetMapData(receptor, metYear, emissYear):
     # get pm exposure for every image
     exposure = getExposureTimeSeries(pm)
 
-    totPM = pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
+    # we only want map for Jun - Nov
+    summer_pm = pm.filterDate(str(metYear)+'-06-01', str(metYear)+'-11-30')
+
+    totPM = summer_pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
     mapid = GetMapId(totPM, maxVal=1e-5)
     mapIds.append(mapid['mapid'])
     tokens.append(mapid['token'])
@@ -283,7 +286,7 @@ def getMonthlyPM(sensitivities, emiss):
         emission = ee.Image(ee.List(data).get(1))
         pm_philic = sensitivity.select('b1').multiply(emission.select('b1')).multiply(ee.Image(SCALE_FACTOR/31.0))
         pm_phobic = sensitivity.select('b2').multiply(emission.select('b2')).multiply(ee.Image(SCALE_FACTOR/31.0))
-        return pm_philic.add(pm_phobic).set('system:footprint', sensitivity.get('system:footprint'))
+        return pm_philic.add(pm_phobic).set('system:footprint', sensitivity.get('system:footprint')).set('system:time_start', sensitivity.get('system:time_start'))
 
     # iterate over all files
     monthly_pm = combined_data.map(computePM)
