@@ -15,7 +15,7 @@ smoke = {};  // Our namespace.
  * @param {string} serializedPolygonIds A serialized array of the IDs of the
  *     polygons to show on the map. For example: "['poland', 'moldova']".
  */
-smoke.boot = function(eeMapId, eeToken, boundaries, timeseries) {
+smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, timeseries) {
   // Load external libraries.
   google.load('visualization', '1.0');
   google.load('jquery', '1');
@@ -30,6 +30,7 @@ smoke.boot = function(eeMapId, eeToken, boundaries, timeseries) {
     var app = new smoke.App(mapType, JSON.parse(boundaries));
     
     // set the timesereies values for the chart
+    smoke.App.total_PM = totalPM;
     smoke.App.timeseries = JSON.parse(timeseries);
 
     // save the map layers

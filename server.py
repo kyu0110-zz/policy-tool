@@ -28,43 +28,7 @@ class MainHandler(webapp2.RequestHandler):
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
 
-    # a list of ids for different layers
-    mapIds = []
-    tokens = []
-
-    # first layer is land cover
-    landcover_img = getLandcoverData()
-    mapIds.append(landcover_img['mapid'])
-    tokens.append(landcover_img['token'])
-
-    # second layer is emissions
-    emissions = getEmissions(2008)
-    mapid = GetMapId(emissions.mean(), maxVal=5e5, maskValue=1, color='FFFFFF, AA0000')
-    mapIds.append(mapid['mapid'])
-    tokens.append(mapid['token'])
-
-    # third layer is sensitivities
-    sensitivities = getSensitivity('Malaysia', 2008)
-    meansens = sensitivities.mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
-    mapid = GetMapId(meansens, maxVal=0.02, maskValue=0.0005)
-    mapIds.append(mapid['mapid'])
-    tokens.append(mapid['token'])
-    
-    # fourth layer is PM
-    pm = getMonthlyPM(sensitivities, emissions)
-
-    # get pm exposure for every image
-    exposure = getExposureTimeSeries(pm)
-
-    totPM = pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
-    mapid = GetMapId(totPM, maxVal=1e-5)
-    mapIds.append(mapid['mapid'])
-    tokens.append(mapid['token'])
-
-    # fifth layer is population
-    pop_img = getPopulationDensity('2010')
-    mapIds.append(pop_img['mapid'])
-    tokens.append(pop_img['token'])
+    mapIds, tokens, exposure, totalPM = GetMapData('Malaysia', 2008, 2008)
 
     print(mapIds)
 
@@ -74,6 +38,7 @@ class MainHandler(webapp2.RequestHandler):
         'eeMapId': json.dumps(mapIds),
         'eeToken': json.dumps(tokens),
         'boundaries': json.dumps(REGION_IDS),
+        'totalPM' : totalPM['b1'],
         'timeseries': json.dumps(exposure)
     }
     template = JINJA2_ENVIRONMENT.get_template('index.html')
@@ -92,51 +57,10 @@ class DetailsHandler(webapp2.RequestHandler):
         print 'Met year = ' + metYear
         print 'Emissions year = ' + emissYear
         if receptor in RECEPTORS:
-            # a list of ids for different layers
-            mapIds = []
-            tokens = []
-
-            # first layer is land cover
-            landcover_img = getLandcoverData()
-            mapIds.append(landcover_img['mapid'])
-            tokens.append(landcover_img['token'])
-
-            # second layer is emissions
-            emissions = getEmissions(emissYear)
-            mapid = GetMapId(emissions.mean(), maxVal=5e5, maskValue=1, color='FFFFFF, AA0000')
-            mapIds.append(mapid['mapid'])
-            tokens.append(mapid['token'])
-
-            # third layer is sensitivities
-            sensitivities = getSensitivity(receptor, metYear)
-            meansens = sensitivities.mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
-            mapid = GetMapId(meansens, maxVal=0.02, maskValue=0.0005)
-            mapIds.append(mapid['mapid'])
-            tokens.append(mapid['token'])
-    
-            # fourth layer is PM
-            pm = getMonthlyPM(sensitivities, emissions)
-
-            # get pm exposure for every image
-            exposure = getExposureTimeSeries(pm)
-
-            totPM = pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
-            mapid = GetMapId(totPM, maxVal=1e-5)
-            mapIds.append(mapid['mapid'])
-            tokens.append(mapid['token'])
-
-            # fifth layer is population
-            pop_img = getPopulationDensity('2010')
-            mapIds.append(pop_img['mapid'])
-            tokens.append(pop_img['token'])
-
+            mapIds, tokens, exposure, totalPM = GetMapData(receptor, metYear, emissYear)
         else:
             mapIds  = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
             tokens = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
-
-        ## Compute the total
-        proj = ee.Image(pm.first()).select('b1').projection()
-        totalPM = computeTotal(totPM, proj)
 
         ## Make new map 
         template_values = {
@@ -170,6 +94,52 @@ app = webapp2.WSGIApplication([
 ###############################################################################
 #                                   Helpers.                                  #
 ###############################################################################
+
+def GetMapData(receptor, metYear, emissYear):
+    """Returns two lists with mapids and tokens of the different map layers"""
+    # a list of ids for different layers
+    mapIds = []
+    tokens = []
+
+    # first layer is land cover
+    landcover_img = getLandcoverData()
+    mapIds.append(landcover_img['mapid'])
+    tokens.append(landcover_img['token'])
+
+    # second layer is emissions
+    emissions = getEmissions(emissYear)
+    mapid = GetMapId(emissions.mean(), maxVal=5e5, maskValue=1, color='FFFFFF, AA0000')
+    mapIds.append(mapid['mapid'])
+    tokens.append(mapid['token'])
+
+    # third layer is sensitivities
+    sensitivities = getSensitivity(receptor, metYear)
+    meansens = sensitivities.mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
+    mapid = GetMapId(meansens, maxVal=0.02, maskValue=0.0005)
+    mapIds.append(mapid['mapid'])
+    tokens.append(mapid['token'])
+    
+    # fourth layer is PM
+    pm = getMonthlyPM(sensitivities, emissions)
+
+    # get pm exposure for every image
+    exposure = getExposureTimeSeries(pm)
+
+    totPM = pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
+    mapid = GetMapId(totPM, maxVal=1e-5)
+    mapIds.append(mapid['mapid'])
+    tokens.append(mapid['token'])
+    
+    ## Compute the total Jun - Nov mean exposure at receptor
+    proj = ee.Image(pm.first()).select('b1').projection()
+    totalPM = computeTotal(totPM, proj)
+
+    # fifth layer is population
+    pop_img = getPopulationDensity('2010')
+    mapIds.append(pop_img['mapid'])
+    tokens.append(pop_img['token'])
+
+    return mapIds, tokens, exposure, totalPM
 
 
 def GetMapId(image, maxVal=0.1, maskValue=0.000000000001, color='FFFFFF, 220066'):
