@@ -56,8 +56,8 @@ class MainHandler(webapp2.RequestHandler):
     # get pm exposure for every image
     exposure = getExposureTimeSeries(pm)
 
-    totPM = pm.sum().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
-    mapid = GetMapId(totPM, maxVal=1e5)
+    totPM = pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
+    mapid = GetMapId(totPM, maxVal=1e-5)
     mapIds.append(mapid['mapid'])
     tokens.append(mapid['token'])
 
@@ -120,8 +120,8 @@ class DetailsHandler(webapp2.RequestHandler):
             # get pm exposure for every image
             exposure = getExposureTimeSeries(pm)
 
-            totPM = pm.sum().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
-            mapid = GetMapId(totPM, maxVal=1e5)
+            totPM = pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
+            mapid = GetMapId(totPM, maxVal=1e-5)
             mapIds.append(mapid['mapid'])
             tokens.append(mapid['token'])
 
@@ -207,9 +207,8 @@ def getLandcoverData():
 def getEmissions(year):
     """Gets the dry matter emissions from GFED and converts to oc/bc"""
 
-    monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.gte('system:index', 'DM_'+str(year)+'01')).filter(ee.Filter.lte('system:index', 'DM_'+str(year)+'12'))
+    monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.rangeContains('system:index', 'DM_'+str(year)+'01', 'DM_'+str(year)+'12'))
     #monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filterDate('2008-01-01', '2009-01-01').sort('system:time_start', True) 
-    #monthly_dm = ee.Image('users/tl2581/gfedv4s/DM_200801').select('b1')
 
     # map comes from IAV file
     #monthly_dm = (emissions * map)   # Gg to Tg 
@@ -238,14 +237,14 @@ def getEmissions(year):
             total_bc = total_bc.add(bc_fine)
 
         # split into GEOS-Chem hydrophobic and hydrophilic fractions, convert g to kg
-        ocpo = total_oc.multiply(ee.Image(0.5 * 1.0e3 * 2.1))
-        ocpi = total_oc.multiply(ee.Image(0.5 * 1.0e3 * 2.1))
-        bcpo = total_bc.multiply(ee.Image(0.8 * 1.0e3))
-        bcpi = total_bc.multiply(ee.Image(0.2 * 1.0e3))
+        ocpo = total_oc.multiply(ee.Image(0.5 * 1.0e3 * 2.1 * 10e-9))
+        ocpi = total_oc.multiply(ee.Image(0.5 * 1.0e3 * 2.1 * 10e-9))
+        bcpo = total_bc.multiply(ee.Image(0.8 * 1.0e3 * 10e-9))
+        bcpi = total_bc.multiply(ee.Image(0.2 * 1.0e3 * 10e-9))
 
         # compute daily averages from the monthly total
-        emissions_philic = ocpi.add(bcpi).multiply(1.0/(31.0 * 6.0))
-        emissions_phobic = ocpo.add(bcpo).multiply(1.0/(31.0 * 6.0))
+        emissions_philic = ocpi.add(bcpi).multiply(ee.Image(1.0/(31.0 * 6.0)))
+        emissions_phobic = ocpo.add(bcpo).multiply(ee.Image(1.0/(31.0 * 6.0)))
 
         return emissions_philic.addBands(emissions_phobic, ['b1']).rename(['b1', 'b2'])
 
