@@ -30,7 +30,7 @@ smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, timeseries) {
     var app = new smoke.App(mapType, JSON.parse(boundaries));
     
     // set the timesereies values for the chart
-    smoke.App.total_PM = totalPM;
+    smoke.App.total_PM = JSON.parse(totalPM).toFixed(2);
     smoke.App.timeseries = JSON.parse(timeseries);
 
     // save the map layers
@@ -243,12 +243,28 @@ smoke.App.prototype.drawSourcePie = function() {
 smoke.App.prototype.drawTimeSeries = function() {
   // Add chart that shows contribution from each region
     var summaryData = google.visualization.arrayToDataTable(smoke.App.timeseries, true);
-        
+    summaryData.insertColumn(0, 'string');
+    summaryData.setValue(0, 0, 'Jan');
+    summaryData.setValue(1, 0, 'Feb');
+    summaryData.setValue(2, 0, 'Mar');
+    summaryData.setValue(3, 0, 'Apr');
+    summaryData.setValue(4, 0, 'May');
+    summaryData.setValue(5, 0, 'Jun');
+    summaryData.setValue(6, 0, 'Jul');
+    summaryData.setValue(7, 0, 'Aug');
+    summaryData.setValue(8, 0, 'Sep');
+    summaryData.setValue(9, 0, 'Oct');
+    summaryData.setValue(10, 0, 'Nov');
+    summaryData.setValue(11, 0, 'Dec');
+       
+    summaryData.removeColumn(1); 
+
     var wrapper = new google.visualization.ChartWrapper({
       chartType: 'LineChart',
       dataTable: summaryData,
       options: {
-        title: 'Population weighted exposure'
+        title: 'Population weighted exposure',
+        legend: { position: 'none'}
       }
     });
 
@@ -294,11 +310,11 @@ smoke.App.prototype.newScenario = function() {
         smoke.App.tokens = JSON.parse(data.eeToken);
 
         // Set total PM equal to extracted value
-        smoke.App.total_PM = data.totalPM;
+        smoke.App.total_PM = data.totalPM.toFixed(2);
         smoke.App.timeseries = JSON.parse(data.timeseries);
 
         // Overlap new map
-        mapType.setOpacity(0.3);
+        mapType.setOpacity(0.4);
     
         // clear old map layers
         map.overlayMapTypes.clear();
@@ -343,7 +359,7 @@ smoke.App.prototype.addLayer = function(layername) {
     };
 
     var mapType = smoke.App.getEeMapType(smoke.App.mapids[id_index], smoke.App.tokens[id_index]);
-    mapType.setOpacity(0.3);
+    mapType.setOpacity(0.4);
     this.map.overlayMapTypes.push(mapType);
 };
 

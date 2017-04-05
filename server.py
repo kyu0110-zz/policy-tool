@@ -108,13 +108,13 @@ def GetMapData(receptor, metYear, emissYear):
 
     # second layer is emissions
     emissions = getEmissions(emissYear)
-    mapid = GetMapId(emissions.mean(), maxVal=5e5, maskValue=1, color='FFFFFF, AA0000')
+    mapid = GetMapId(emissions.mean(), maxVal=5e3, maskValue=1e-3, color='FFFFFF, AA0000')
     mapIds.append(mapid['mapid'])
     tokens.append(mapid['token'])
 
     # third layer is sensitivities
     sensitivities = getSensitivity(receptor, metYear)
-    meansens = sensitivities.mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
+    meansens = sensitivities.filterDate(str(metYear)+'-07-01', str(metYear)+'-11-30').mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
     mapid = GetMapId(meansens, maxVal=0.02, maskValue=0.0005)
     mapIds.append(mapid['mapid'])
     tokens.append(mapid['token'])
@@ -125,11 +125,11 @@ def GetMapData(receptor, metYear, emissYear):
     # get pm exposure for every image
     exposure = getExposureTimeSeries(pm)
 
-    # we only want map for Jun - Nov
-    summer_pm = pm.filterDate(str(metYear)+'-06-01', str(metYear)+'-11-30')
+    # we only want map for Jul - Nov
+    summer_pm = pm.filterDate(str(metYear)+'-07-01', str(metYear)+'-11-30')
 
     totPM = summer_pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
-    mapid = GetMapId(totPM, maxVal=1e-5)
+    mapid = GetMapId(totPM, maxVal=1e-2)
     mapIds.append(mapid['mapid'])
     tokens.append(mapid['token'])
     
@@ -210,14 +210,14 @@ def getEmissions(year):
             total_bc = total_bc.add(bc_fine)
 
         # split into GEOS-Chem hydrophobic and hydrophilic fractions, convert g to kg
-        ocpo = total_oc.multiply(ee.Image(0.5 * 1.0e3 * 2.1 * 10e-9))
-        ocpi = total_oc.multiply(ee.Image(0.5 * 1.0e3 * 2.1 * 10e-9))
-        bcpo = total_bc.multiply(ee.Image(0.8 * 1.0e3 * 10e-9))
-        bcpi = total_bc.multiply(ee.Image(0.2 * 1.0e3 * 10e-9))
+        ocpo = total_oc.multiply(ee.Image(0.5 * 1.0e-3 * 2.1))
+        ocpi = total_oc.multiply(ee.Image(0.5 * 1.0e-3 * 2.1))
+        bcpo = total_bc.multiply(ee.Image(0.8 * 1.0e-3))
+        bcpi = total_bc.multiply(ee.Image(0.2 * 1.0e-3))
 
         # compute daily averages from the monthly total
-        emissions_philic = ocpi.add(bcpi).multiply(ee.Image(1.0/(31.0 * 6.0)))
-        emissions_phobic = ocpo.add(bcpo).multiply(ee.Image(1.0/(31.0 * 6.0)))
+        emissions_philic = ocpi.add(bcpi).multiply(ee.Image(1.0/(30.0 * 6.0)))
+        emissions_phobic = ocpo.add(bcpo).multiply(ee.Image(1.0/(30.0 * 6.0)))
 
         return emissions_philic.addBands(emissions_phobic, ['b1']).rename(['b1', 'b2'])
 
@@ -284,8 +284,8 @@ def getMonthlyPM(sensitivities, emiss):
     def computePM(data):
         sensitivity = ee.Image(ee.List(data).get(0))
         emission = ee.Image(ee.List(data).get(1))
-        pm_philic = sensitivity.select('b1').multiply(emission.select('b1')).multiply(ee.Image(SCALE_FACTOR/31.0))
-        pm_phobic = sensitivity.select('b2').multiply(emission.select('b2')).multiply(ee.Image(SCALE_FACTOR/31.0))
+        pm_philic = sensitivity.select('b1').multiply(emission.select('b1')).multiply(ee.Image(SCALE_FACTOR/30.0))
+        pm_phobic = sensitivity.select('b2').multiply(emission.select('b2')).multiply(ee.Image(SCALE_FACTOR/30.0))
         return pm_philic.add(pm_phobic).set('system:footprint', sensitivity.get('system:footprint')).set('system:time_start', sensitivity.get('system:time_start'))
 
     # iterate over all files
