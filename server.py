@@ -53,10 +53,21 @@ class DetailsHandler(webapp2.RequestHandler):
         receptor = self.request.get('receptor')
         metYear = self.request.get('metYear')
         emissYear = self.request.get('emissYear')
+        logging = self.request.get('logging')
+        oilpalm = self.request.get('oilpalm')
+        timber = self.request.get('timber')
+        peatlands = self.request.get('peatlands')
+        conservation = self.request.get('conservation')
 
         print 'Receptor = ' + receptor
         print 'Met year = ' + metYear
         print 'Emissions year = ' + emissYear
+        print 'logging = ' + logging
+        print 'oil palm = ' + oilpalm
+        print 'timber = ' + timber
+        print 'peatlands = ' + peatlands 
+        print 'conservation = ' + conservation
+
         if receptor in RECEPTORS:
             mapIds, tokens, exposure, totalPM, provtotal = GetMapData(receptor, metYear, emissYear)
         else:

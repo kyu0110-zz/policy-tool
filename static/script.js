@@ -292,7 +292,12 @@ smoke.App.prototype.newScenario = function() {
       {
          receptor: $('#receptor').val(),
          metYear: $('#metYear').val(),
-         emissYear: $('#emissYear').val()
+         emissYear: $('#emissYear').val(),
+         logging: $('#logging').is(':checked'),
+         oilpalm: $('#oilpalm').is(':checked'),
+         timber: $('#timber').is(':checked'),
+         peatlands: $('#peatlands').is(':checked'),
+         conservation: $('#conservation').is(':checked')
       },
       function(data) {
         // Get new maptype
