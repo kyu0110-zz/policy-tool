@@ -16,7 +16,6 @@ import webapp2
 
 from google.appengine.api import memcache 
 
-
 ###############################################################################
 #                             Web request handlers.                           #
 ###############################################################################
@@ -28,10 +27,11 @@ class MainHandler(webapp2.RequestHandler):
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
 
-    mapIds, tokens, exposure, totalPM = GetMapData('Malaysia', 2008, 2008)
+    mapIds, tokens, exposure, totalPM, provtotal = GetMapData('Malaysia', 2008, 2008)
 
     print(mapIds)
 
+    print(provtotal)
     # Compute the totals for different provinces.
 
     template_values = {
@@ -39,6 +39,7 @@ class MainHandler(webapp2.RequestHandler):
         'eeToken': json.dumps(tokens),
         'boundaries': json.dumps(REGION_IDS),
         'totalPM' : totalPM['b1'],
+        'provincial': json.dumps(provtotal),
         'timeseries': json.dumps(exposure)
     }
     template = JINJA2_ENVIRONMENT.get_template('index.html')
@@ -57,7 +58,7 @@ class DetailsHandler(webapp2.RequestHandler):
         print 'Met year = ' + metYear
         print 'Emissions year = ' + emissYear
         if receptor in RECEPTORS:
-            mapIds, tokens, exposure, totalPM = GetMapData(receptor, metYear, emissYear)
+            mapIds, tokens, exposure, totalPM, provtotal = GetMapData(receptor, metYear, emissYear)
         else:
             mapIds  = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
             tokens = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
@@ -67,6 +68,7 @@ class DetailsHandler(webapp2.RequestHandler):
             'eeMapId': json.dumps(mapIds),
             'eeToken': json.dumps(tokens),
             'totalPM': totalPM['b1'],
+            'provincial': json.dumps(provtotal),
             'timeseries': json.dumps(exposure)
 
         }
@@ -137,12 +139,16 @@ def GetMapData(receptor, metYear, emissYear):
     proj = ee.Image(pm.first()).select('b1').projection()
     totalPM = computeTotal(totPM, proj)
 
+    # get provincial totals
+    prov = getProvinceBoundaries()
+    provtotal = computeRegionalTotal(totPM, prov, proj)
+
     # fifth layer is population
     pop_img = getPopulationDensity('2010')
     mapIds.append(pop_img['mapid'])
     tokens.append(pop_img['token'])
 
-    return mapIds, tokens, exposure, totalPM
+    return mapIds, tokens, exposure, totalPM, provtotal
 
 
 def GetMapId(image, maxVal=0.1, maskValue=0.000000000001, color='FFFFFF, 220066'):
@@ -322,10 +328,33 @@ def computeTotal(image, projection):
     return ee.Feature(None, {'b1': totalValue.get('b1')}).getInfo()['properties']
 
 
+def computeRegionalTotal(image, regions, projection):
+    """Computes the provincial totals"""
+    provincialTotals = image.reduceRegions(regions, reducer=ee.Reducer.sum(), crs=projection)
+
+    # remove unncessary info
+    def strip(feature):
+        return ee.Feature(None, {'province': ee.Feature(feature).get('NAME_1'), 
+                'regional': ee.Feature(feature).get('sum')})
+
+    stripped_totals = provincialTotals.map(strip).getInfo()
+    
+    # extract the totals and only return that
+    def getVal(feature):
+        return [feature['properties']['province'], feature['properties']['regional']]
+
+    return map(getVal, stripped_totals['features'])
+    #return ee.Dictionary(provincialTotals.iterate(getVal, ee.Dictionary({})))
+
 def getProvinceBoundaries():
     """Get boundaries for the provinces"""
-    fc = ee.FeatureCollection('ft:1lhjVcyhalgraQMwtlvGdaGj26b9VlrJYZy8ju0WO').first().geometry();
-    return fc.getInfo()
+    fc = ee.FeatureCollection('ft:1lhjVcyhalgraQMwtlvGdaGj26b9VlrJYZy8ju0WO');
+
+    def simplify(feature):
+        return feature.simplify(1e3)
+
+    return fc
+    #return fc.getInfo()
 
 def getPopulationDensity(year):
     img = ee.Image(POPULATION_DENSITY_COLLECTION_ID + '/' + year).select('population-density')

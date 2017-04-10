@@ -15,7 +15,7 @@ smoke = {};  // Our namespace.
  * @param {string} serializedPolygonIds A serialized array of the IDs of the
  *     polygons to show on the map. For example: "['poland', 'moldova']".
  */
-smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, timeseries) {
+smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeseries) {
   // Load external libraries.
   google.load('visualization', '1.0');
   google.load('jquery', '1');
@@ -31,6 +31,7 @@ smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, timeseries) {
     
     // set the timesereies values for the chart
     smoke.App.total_PM = JSON.parse(totalPM).toFixed(2);
+    smoke.App.provincial = JSON.parse(provincial);
     smoke.App.timeseries = JSON.parse(timeseries);
 
     // save the map layers
@@ -125,6 +126,7 @@ smoke.App.prototype.createMap = function(mapType) {
  */
 smoke.App.prototype.addBoundaries = function(regions) {
   regions.forEach((function(region) {
+    //this.map.data.addGeoJson(region);
     this.map.data.loadGeoJson('static/regions/' + region + '.json');
   }).bind(this));
   this.map.data.setStyle(function(feature) {
@@ -214,14 +216,7 @@ smoke.App.prototype.hideScenario = function(event) {
  */
 smoke.App.prototype.drawSourcePie = function() {
   // Add chart that shows contribution from each region
-    var summaryData = google.visualization.arrayToDataTable([
-               ['Province', 'Contribution'],
-               ['Jambi', 10],
-               ['South Sumatra', 4],
-               ['West Kalimantan', 6],
-               ['Central Kalimantan', 2],
-               ['Other',  1]
-    ]);
+    var summaryData = google.visualization.arrayToDataTable(smoke.App.provincial, true);
         
     var wrapper = new google.visualization.ChartWrapper({
       chartType: 'PieChart',
@@ -311,6 +306,7 @@ smoke.App.prototype.newScenario = function() {
 
         // Set total PM equal to extracted value
         smoke.App.total_PM = data.totalPM.toFixed(2);
+        smoke.App.provincial = JSON.parse(data.provincial);
         smoke.App.timeseries = JSON.parse(data.timeseries);
 
         // Overlap new map
@@ -445,6 +441,7 @@ smoke.App.DEFAULT_CENTER = {lng: 110.82, lat: 3.35};
 
 
 smoke.App.total_PM = 0.0;
+smoke.App.provincial;
 smoke.App.timeseries = 0.0;
 smoke.App.mapids;
 smoke.App.tokens;
