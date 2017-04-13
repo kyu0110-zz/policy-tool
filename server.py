@@ -27,7 +27,7 @@ class MainHandler(webapp2.RequestHandler):
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
 
-    mapIds, tokens, exposure, totalPM, provtotal = GetMapData('Malaysia', 2008, 2008, False, False, True, False, False)
+    mapIds, tokens, exposure, totalPM, provtotal = GetMapData('Malaysia', 2008, 2008, False, False, False, False, False)
 
     print(mapIds)
 
@@ -68,8 +68,36 @@ class DetailsHandler(webapp2.RequestHandler):
         print 'peatlands = ' + peatlands 
         print 'conservation = ' + conservation
 
+        # convert to boolean
+        if logging == 'true':
+            logging_bool = False
+        else:
+            logging_bool = True
+
+        if oilpalm == 'true':
+            oilpalm_bool = False
+        else:
+            oilpalm_bool = True
+
+        if timber == 'true':
+            timber_bool = False
+        else:
+            timber_bool = True
+
+        if peatlands == 'true':
+            peatlands_bool = False
+        else:
+            peatlands_bool = True
+
+        if conservation == 'true':
+            conservation_bool = False
+        else:
+            conservation_bool = True
+
+        print(logging_bool)
+
         if receptor in RECEPTORS:
-            mapIds, tokens, exposure, totalPM, provtotal = GetMapData(receptor, metYear, emissYear, False, False, True, False, False)
+            mapIds, tokens, exposure, totalPM, provtotal = GetMapData(receptor, metYear, emissYear, logging_bool, oilpalm_bool, timber_bool, peatlands_bool, conservation_bool)
         else:
             mapIds  = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
             tokens = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
@@ -200,7 +228,17 @@ def getEmissions(year, logging, oilpalm, timber, peatlands, conservation):
     monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.rangeContains('system:index', 'DM_'+str(year)+'01', 'DM_'+str(year)+'12'))
     #monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filterDate('2008-01-01', '2009-01-01').sort('system:time_start', True) 
 
-    mask = getTimber()
+    if logging:
+        loggingmask = getLogging()
+    if oilpalm:
+        oilpalmmask = getOilPalm()
+    if timber:
+        timbermask = getTimber()
+    if peatlands:
+        peatmask = getPeatlands()
+    if conservation:
+        conservationmask = getConservation()
+    
 
     # map comes from IAV file
     #monthly_dm = (emissions * map)   # Gg to Tg 
@@ -209,7 +247,19 @@ def getEmissions(year, logging, oilpalm, timber, peatlands, conservation):
     def get_oc_bc(dm_emissions):
    
         # first mask out data from regions that are turned off
-        maskedEmissions = dm_emissions.updateMask(mask);
+        if logging:
+            maskedEmissions = dm_emissions.updateMask(loggingmask)
+        else:
+            maskedEmissions = dm_emissions
+
+        if oilpalm:
+            maskedEmissions = maskedEmissions.updateMask(oilpalmmask)
+        if timber:
+            maskedEmissions = maskedEmissions.updateMask(timbermask)
+        if peatlands:
+            maskedEmissions = maskedEmissions.updateMask(peatmask)
+        if conservation:
+            maskedEmissions = maskedEmissions.updateMask(conservationmask)
 
         land_types = ['PET', 'DEF', 'AGRI', 'SAV', 'TEMP', 'PLT']
         oc_ef = [2.157739E+23, 2.157739E+23, 2.082954E+23, 1.612156E+23, 1.885199E+23, 1.885199E+23]
@@ -375,14 +425,17 @@ def getProvinceBoundaries():
 
 def getLogging():
     """Get boundaries for logging concessions"""
-    fc = ee.FeatureCollection('ft:1QgJf-3Vso3hirAnBMknJmEwwZ9-2tHIT62RHqLxX')
+    #fc = ee.FeatureCollection('ft:1QgJf-3Vso3hirAnBMknJmEwwZ9-2tHIT62RHqLxX')
+    mask = ee.Image('users/karenyu/logging_concessions')
 
-    return fc
+    return mask
 
 def getOilPalm():
     """Get boundaries for oil palm concessions"""
-    fc = ee.FeatureCollection('1eKRxDmhsYm-uJ0h_knFqJd7iS-kMhjkpJDBG8URF')
-    return fc
+    #fc = ee.FeatureCollection('1eKRxDmhsYm-uJ0h_knFqJd7iS-kMhjkpJDBG8URF')
+    mask = ee.Image('users/karenyu/oilpalm')
+
+    return mask
 
 def getTimber():
     """Get boundaries for timber concessions"""
@@ -394,13 +447,17 @@ def getTimber():
 
 def getPeatlands():
     """Get boundaries for peatlands"""
-    fc = ee.FeatureCollection('1cSPErISE1fJURsPbeHrnaoCofSa6efRPbBX5bz8a')
-    return fc
+    #fc = ee.FeatureCollection('1cSPErISE1fJURsPbeHrnaoCofSa6efRPbBX5bz8a')
+
+    mask = ee.Image('users/karenyu/peatlands')
+    return mask
 
 def getConservation():
     """Get boundaries for conservation areas"""
-    fc = ee.FeatureCollection('1mY-MLMGjNqxCqZiY9ek5AVQMdNhLq_Fjh_2fHnkf')
-    return fc
+    #fc = ee.FeatureCollection('1mY-MLMGjNqxCqZiY9ek5AVQMdNhLq_Fjh_2fHnkf')
+    mask = ee.Image('users/karenyu/conservation')
+
+    return mask
 
 
 def getPopulationDensity(year):

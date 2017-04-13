@@ -87,11 +87,21 @@
               <input id="emissYear" name="emissYear" type="range" min="2000" max="2020" value="2006">
               <output for="emissYear" name="emissYearOutput">2006</output>
               </form>
-              <button id="get">Submit scenario</button>
+                </td>
+                <td>
+                    Emission scenario <br>
+                    <form>
+                        <select id="emissScenario" name="emissScenario">
+                            <option value="BAU">Business as usual</option>
+                            <option value="HiDeforest">High deforestation</option>
+                            <option value="peatprotect">Peatlands protection</option>
+                        </select>
+                    </form>
                 </td>
             </tr>
             <tr>
                 <td colspan=2>
+                    Include emissions from: <br>
                     Concessions:
                     <input type="checkbox" id="logging" checked="true">Logging 
                     <input type="checkbox" id="oilpalm" checked="true">Oil Palm 
@@ -99,6 +109,8 @@
                     Other regions: 
                     <input type="checkbox" id="peatlands" checked="true">Peatlands 
                     <input type="checkbox" id="conservation" checked="true">Conservation areas
+                    <br>
+                    <button id="get">Submit scenario</button>
                 </td>
             </tr>
         </table>
