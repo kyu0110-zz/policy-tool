@@ -216,8 +216,9 @@ smoke.App.prototype.hideScenario = function(event) {
  */
 smoke.App.prototype.drawSourcePie = function() {
   // Add chart that shows contribution from each region
+    console.info(smoke.App.provincial)
     var summaryData = google.visualization.arrayToDataTable(smoke.App.provincial, true);
-        
+       
     var wrapper = new google.visualization.ChartWrapper({
       chartType: 'PieChart',
       dataTable: summaryData,

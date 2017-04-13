@@ -27,7 +27,7 @@ class MainHandler(webapp2.RequestHandler):
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
 
-    mapIds, tokens, exposure, totalPM, provtotal = GetMapData('Malaysia', 2008, 2008)
+    mapIds, tokens, exposure, totalPM, provtotal = GetMapData('Malaysia', 2008, 2008, False, False, True, False, False)
 
     print(mapIds)
 
@@ -69,7 +69,7 @@ class DetailsHandler(webapp2.RequestHandler):
         print 'conservation = ' + conservation
 
         if receptor in RECEPTORS:
-            mapIds, tokens, exposure, totalPM, provtotal = GetMapData(receptor, metYear, emissYear)
+            mapIds, tokens, exposure, totalPM, provtotal = GetMapData(receptor, metYear, emissYear, False, False, True, False, False)
         else:
             mapIds  = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
             tokens = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
@@ -108,7 +108,7 @@ app = webapp2.WSGIApplication([
 #                                   Helpers.                                  #
 ###############################################################################
 
-def GetMapData(receptor, metYear, emissYear):
+def GetMapData(receptor, metYear, emissYear, logging, oilpalm, timber, peatlands, conservation ):
     """Returns two lists with mapids and tokens of the different map layers"""
     # a list of ids for different layers
     mapIds = []
@@ -120,7 +120,7 @@ def GetMapData(receptor, metYear, emissYear):
     tokens.append(landcover_img['token'])
 
     # second layer is emissions
-    emissions = getEmissions(emissYear)
+    emissions = getEmissions(emissYear, logging, oilpalm, timber, peatlands, conservation)
     mapid = GetMapId(emissions.mean(), maxVal=5e3, maskValue=1e-3, color='FFFFFF, AA0000')
     mapIds.append(mapid['mapid'])
     tokens.append(mapid['token'])
@@ -194,18 +194,23 @@ def getLandcoverData():
         'palette': 'FFFFFF, 00AA00'
         })
 
-def getEmissions(year):
+def getEmissions(year, logging, oilpalm, timber, peatlands, conservation):
     """Gets the dry matter emissions from GFED and converts to oc/bc"""
 
     monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.rangeContains('system:index', 'DM_'+str(year)+'01', 'DM_'+str(year)+'12'))
     #monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filterDate('2008-01-01', '2009-01-01').sort('system:time_start', True) 
+
+    mask = getTimber()
 
     # map comes from IAV file
     #monthly_dm = (emissions * map)   # Gg to Tg 
 
     # function to compute oc and bc emissions from dm
     def get_oc_bc(dm_emissions):
-    
+   
+        # first mask out data from regions that are turned off
+        maskedEmissions = dm_emissions.updateMask(mask);
+
         land_types = ['PET', 'DEF', 'AGRI', 'SAV', 'TEMP', 'PLT']
         oc_ef = [2.157739E+23, 2.157739E+23, 2.082954E+23, 1.612156E+23, 1.885199E+23, 1.885199E+23]
         bc_ef = [2.835829E+22, 2.835829E+22, 2.113069E+22, 2.313836E+22, 2.574832E+22, 2.574832E+22]
@@ -217,8 +222,8 @@ def getEmissions(year):
             oc_scale = oc_ef[land_type] * 6.022e-23 * 12  # g OC
             bc_scale = bc_ef[land_type] * 6.022e-23 * 12  # g BC
 
-            oc_fine = dm_emissions.multiply(ee.Image(oc_scale))
-            bc_fine = dm_emissions.multiply(ee.Image(bc_scale))
+            oc_fine = maskedEmissions.multiply(ee.Image(oc_scale))
+            bc_fine = maskedEmissions.multiply(ee.Image(bc_scale))
 
             # interpolate to current grid (is this necessary in earth engine?)
 
@@ -359,13 +364,44 @@ def computeRegionalTotal(image, regions, projection):
 
 def getProvinceBoundaries():
     """Get boundaries for the provinces"""
-    fc = ee.FeatureCollection('ft:1lhjVcyhalgraQMwtlvGdaGj26b9VlrJYZy8ju0WO');
+    #fc = ee.FeatureCollection('ft:1lhjVcyhalgraQMwtlvGdaGj26b9VlrJYZy8ju0WO')
+    fc = ee.FeatureCollection('ft:19JY_hNX1c_zk7UVlt4LC8cj7Qv3wKqnKJHN84wWs')
 
-    def simplify(feature):
-        return feature.simplify(1e3)
+    #def simplify(feature):
+    #    return feature.simplify(1000)
 
     return fc
     #return fc.getInfo()
+
+def getLogging():
+    """Get boundaries for logging concessions"""
+    fc = ee.FeatureCollection('ft:1QgJf-3Vso3hirAnBMknJmEwwZ9-2tHIT62RHqLxX')
+
+    return fc
+
+def getOilPalm():
+    """Get boundaries for oil palm concessions"""
+    fc = ee.FeatureCollection('1eKRxDmhsYm-uJ0h_knFqJd7iS-kMhjkpJDBG8URF')
+    return fc
+
+def getTimber():
+    """Get boundaries for timber concessions"""
+    #fc = ee.FeatureCollection('1SCflzzfReLipuUttF76z8Ln-1zjvHRn2pKjzt6om')
+    #img = fc.reduceToImage(properties=ee.List(['objectid']), reducer=ee.Reducer.count())
+
+    mask = ee.Image('users/karenyu/timber_concession')
+    return mask
+
+def getPeatlands():
+    """Get boundaries for peatlands"""
+    fc = ee.FeatureCollection('1cSPErISE1fJURsPbeHrnaoCofSa6efRPbBX5bz8a')
+    return fc
+
+def getConservation():
+    """Get boundaries for conservation areas"""
+    fc = ee.FeatureCollection('1mY-MLMGjNqxCqZiY9ek5AVQMdNhLq_Fjh_2fHnkf')
+    return fc
+
 
 def getPopulationDensity(year):
     img = ee.Image(POPULATION_DENSITY_COLLECTION_ID + '/' + year).select('population-density')
@@ -377,7 +413,6 @@ def getPopulationDensity(year):
         'format': 'png',
         'palette': 'FFFFFF, 600020',
         })
-
 
 def compute_IAV(emissions):
     """Get interannaual variability from GFED4 emissions."""
