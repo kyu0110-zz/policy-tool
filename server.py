@@ -70,29 +70,29 @@ class DetailsHandler(webapp2.RequestHandler):
 
         # convert to boolean
         if logging == 'true':
-            logging_bool = False
+            logging_bool = True 
         else:
-            logging_bool = True
+            logging_bool = False
 
         if oilpalm == 'true':
-            oilpalm_bool = False
+            oilpalm_bool = True 
         else:
-            oilpalm_bool = True
+            oilpalm_bool = False
 
         if timber == 'true':
-            timber_bool = False
+            timber_bool = True 
         else:
-            timber_bool = True
+            timber_bool = False
 
         if peatlands == 'true':
-            peatlands_bool = False
+            peatlands_bool = True 
         else:
-            peatlands_bool = True
+            peatlands_bool = False 
 
         if conservation == 'true':
-            conservation_bool = False
+            conservation_bool = True 
         else:
-            conservation_bool = True
+            conservation_bool = False
 
         print(logging_bool)
 
