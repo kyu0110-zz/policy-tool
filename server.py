@@ -210,16 +210,12 @@ def changeLayers():
 
 
 def getLandcoverData():
-    gfcImage = ee.Image('UMD/hansen/global_forest_change_2015').select('treecover2000');
-    mask = gfcImage.gt(ee.Image(0.001)).int() 
-    maskedImage = gfcImage.updateMask(mask);
+    image = ee.Image('users/karenyu/landcover');
     
-    return maskedImage.getMapId({
+    return image.getMapId({
         'min': '0',
-        'max': '100', 
-        'bands': 'treecover2000',
+        'max': '255', 
         'format': 'png',
-        'palette': 'FFFFFF, 00AA00'
         })
 
 def getEmissions(year, logging, oilpalm, timber, peatlands, conservation):
