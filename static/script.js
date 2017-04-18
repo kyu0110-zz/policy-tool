@@ -37,6 +37,7 @@ smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeser
     // save the map layers
     smoke.App.mapids = JSON.parse(eeMapId);
     smoke.App.tokens = JSON.parse(eeToken);
+
   });
 };
 
@@ -57,6 +58,9 @@ smoke.App = function(mapType, boundaries) {
 
   // Draw boundaries
   this.addBoundaries(boundaries);
+
+  // Add legend
+  this.addLegend();
 
   // Register a click handler to show a panel when user clicks a source region
   this.map.data.addListener('mouseover', this.handlePolygonHover.bind(this));
@@ -348,20 +352,24 @@ smoke.App.prototype.handleLayerClick = function(layername) {
 smoke.App.prototype.addLayer = function(layername) {
     if (layername == "LANDCOVER") {
         id_index = 0;
+        var opacity = 0.8;
     } else if (layername == "EMISSIONS") {
         id_index = 1;
+        var opacity = 0.4;
     } else if (layername == "GEOSCHEM") {
         if ($('#sensitivity').is(':checked')) {
             id_index = 2;
         } else {
             id_index = 3;
         }
+        var opacity = 0.4;
     } else if (layername == "POPULATION") {
         id_index = 4;
+        var opacity = 0.4;
     };
 
     var mapType = smoke.App.getEeMapType(smoke.App.mapids[id_index], smoke.App.tokens[id_index]);
-    mapType.setOpacity(0.4);
+    mapType.setOpacity(opacity);
     this.map.overlayMapTypes.push(mapType);
 };
 
@@ -385,6 +393,26 @@ smoke.App.prototype.handleLayerSwitchClick = function(layername) {
         smoke.App.layers.push(layername);
     };
 
+};
+
+smoke.App.prototype.addLegend = function() {
+    var legend = document.getElementById('legend');
+    var styles = {
+        intact: {name: 'Intact', palette: '#000000'}, 
+        degraded: {name: 'Degraded', palette: '#666666'}, 
+        nonforest: {name: 'Non-forest', palette: '#fdb751'}, 
+        plantation: {name: 'Tree plantation mosaic', palette: '#ff0000'}, 
+        established: {name: 'Established plantations', palette: '#800080'}
+    };
+    for (var landtype in styles) {
+          var type = styles[landtype];
+          var name = type.name;
+          var palette = type.palette;
+          var div = document.createElement('div');
+          div.innerHTML = '<div style="width:10px; height:10px; float:left; background-color:' + palette + '"></div>' + name
+          legend.appendChild(div);
+    };
+    this.map.controls[google.maps.ControlPosition.LEFT_BOTTOM].push(legend);
 };
 
 /** 

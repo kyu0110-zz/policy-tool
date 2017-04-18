@@ -135,6 +135,16 @@ body,
   padding-right: 10px;
 }
 
+.trendy .legend {
+  position: absolute;
+  bottom: 40px;
+  left: 20px;
+  background-color: white;
+  font-size: 14px;
+  padding: 10px;
+  margin: 10px;
+}
+
 .trendy .layerUI {
   position: absolute;
   top: 0px;
