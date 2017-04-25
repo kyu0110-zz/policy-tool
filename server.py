@@ -13,6 +13,7 @@ import config
 import ee               # earth engine API
 import jinja2           # templating engine
 import webapp2
+import math
 
 from google.appengine.api import memcache 
 
@@ -27,7 +28,7 @@ class MainHandler(webapp2.RequestHandler):
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
 
-    mapIds, tokens, exposure, totalPM, provtotal = GetMapData('Malaysia', 2008, 2008, False, False, False, False, False)
+    mapIds, tokens, exposure, totalPM, provtotal, mort = GetMapData('Malaysia', 2008, 2008, False, False, False, False, False)
 
     print(mapIds)
 
@@ -40,7 +41,8 @@ class MainHandler(webapp2.RequestHandler):
         'boundaries': json.dumps(REGION_IDS),
         'totalPM' : totalPM['b1'],
         'provincial': json.dumps(provtotal),
-        'timeseries': json.dumps(exposure)
+        'timeseries': json.dumps(exposure),
+        'deaths': json.dumps(mort)
     }
     template = JINJA2_ENVIRONMENT.get_template('index.html')
     self.response.out.write(template.render(template_values))
@@ -97,7 +99,7 @@ class DetailsHandler(webapp2.RequestHandler):
         print(logging_bool)
 
         if receptor in RECEPTORS:
-            mapIds, tokens, exposure, totalPM, provtotal = GetMapData(receptor, metYear, emissYear, logging_bool, oilpalm_bool, timber_bool, peatlands_bool, conservation_bool)
+            mapIds, tokens, exposure, totalPM, provtotal, mort = GetMapData(receptor, metYear, emissYear, logging_bool, oilpalm_bool, timber_bool, peatlands_bool, conservation_bool)
         else:
             mapIds  = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
             tokens = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
@@ -108,8 +110,8 @@ class DetailsHandler(webapp2.RequestHandler):
             'eeToken': json.dumps(tokens),
             'totalPM': totalPM['b1'],
             'provincial': json.dumps(provtotal),
-            'timeseries': json.dumps(exposure)
-
+            'timeseries': json.dumps(exposure),
+            'deaths': json.dumps(mort)
         }
         self.response.out.write(json.dumps(template_values))
         #self.response.headers['Content-Type'] = 'application/json'
@@ -149,14 +151,14 @@ def GetMapData(receptor, metYear, emissYear, logging, oilpalm, timber, peatlands
 
     # second layer is emissions
     emissions = getEmissions(emissYear, logging, oilpalm, timber, peatlands, conservation)
-    mapid = GetMapId(emissions.mean(), maxVal=5e3, maskValue=1e-3, color='FFFFFF, AA0000')
+    mapid = GetMapId(emissions.mean().select('b1'), maxVal=5e3, maskValue=1e-3, color='FFFFFF, AA0000')
     mapIds.append(mapid['mapid'])
     tokens.append(mapid['token'])
 
     # third layer is sensitivities
     sensitivities = getSensitivity(receptor, metYear)
     meansens = sensitivities.filterDate(str(metYear)+'-07-01', str(metYear)+'-11-30').mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
-    mapid = GetMapId(meansens, maxVal=0.02, maskValue=0.0005)
+    mapid = GetMapId(meansens.select('b1'), maxVal=0.02, maskValue=0.0005)
     mapIds.append(mapid['mapid'])
     tokens.append(mapid['token'])
     
@@ -177,6 +179,7 @@ def GetMapData(receptor, metYear, emissYear, logging, oilpalm, timber, peatlands
     ## Compute the total Jun - Nov mean exposure at receptor
     proj = ee.Image(pm.first()).select('b1').projection()
     totalPM = computeTotal(totPM, proj)
+    print(totalPM)
 
     # get provincial totals
     prov = getProvinceBoundaries()
@@ -184,10 +187,19 @@ def GetMapData(receptor, metYear, emissYear, logging, oilpalm, timber, peatlands
 
     # fifth layer is population
     pop_img = getPopulationDensity('2010')
-    mapIds.append(pop_img['mapid'])
-    tokens.append(pop_img['token'])
+    mapid = GetMapId(pop_img, maxVal=500, color='FFFFFF, 600020')
+    mapIds.append(mapid['mapid'])
+    tokens.append(mapid['token'])
 
-    return mapIds, tokens, exposure, totalPM, provtotal
+    baseline_mortality = getBaselineMortality()
+    mapid = GetMapId(baseline_mortality, maxVal=5, color='FFFFFF, 600020')
+    mapIds.append(mapid['mapid'])
+    tokens.append(mapid['token'])
+
+    attributable_mortality = getAttributableMortality(baseline_mortality, receptor, totalPM['b1'])
+    print(attributable_mortality)
+
+    return mapIds, tokens, exposure, totalPM, provtotal, attributable_mortality
 
 
 def GetMapId(image, maxVal=0.1, maskValue=0.000000000001, color='FFFFFF, 220066'):
@@ -198,7 +210,6 @@ def GetMapId(image, maxVal=0.1, maskValue=0.000000000001, color='FFFFFF, 220066'
     return maskedImage.getMapId({
         'min': '0',
         'max': str(maxVal),
-        'bands': 'b1',
         'format': 'png',
         'palette': color,
         })
@@ -457,15 +468,83 @@ def getConservation():
 
 
 def getPopulationDensity(year):
-    img = ee.Image(POPULATION_DENSITY_COLLECTION_ID + '/' + year).select('population-density')
+    #img = ee.Image(POPULATION_DENSITY_COLLECTION_ID + '/' + year).select('population-density')
+    img = ee.Image('users/karenyu/GPW2005').select('b1')
+    return img
 
-    return img.getMapId({
-        'min': '0',
-        'max': '500',
-        'bands': 'population-density',
-        'format': 'png',
-        'palette': 'FFFFFF, 600020',
-        })
+
+def getBaselineMortality():
+    return ee.Image('users/karenyu/baseline_mortality')
+
+
+def getAttributableMortality(baseline_mortality, receptor, exposure):
+    CR_25, CR, CR_97 = concentrationResponse(exposure)
+    if receptor == 'Indonesia': 
+        mortality_rate = 0.0099759
+        population = 257563815
+    elif receptor == 'Malaysia':
+        mortality_rate = 0.0078068 
+        population = 30331007 
+    elif receptor == 'Singapore':
+        mortality_rate = 0.0076863
+        population = 5603740 
+
+    total_deaths_25 = mortality_rate * population * CR_25 
+    total_deaths = mortality_rate * population * CR
+    total_deaths_97 = mortality_rate * population * CR_97
+
+    return [total_deaths_25, total_deaths, total_deaths_97]
+
+def concentrationResponse(dExposure):
+    def FullLin25CI(x):
+        return ((0.0059 * 1.8) - (1.96 * 0.004)) * x
+
+    def FullLin(x):
+        return (0.0059 * 1.8) * x 
+
+    def FullLin975CI(x):
+        return ((0.0059 * 1.8) + (1.96 * 0.004)) * x
+
+    def LinTo50(x):
+        if x > 50:
+            return FullLin(50)
+        else:
+            return FullLin(x) 
+
+    def Lin50HalfLin(x):
+        if x <= 50:
+            return FullLin(x)
+        else: 
+            return (FullLin(x) + FullLin(50)) * 0.5
+
+    def FullLog(x):
+        return 1 - (1/math.exp(0.00575 * 1.8 * (x)))
+
+    def FullLog225CI(x):
+        return 1 - (1/math.exp(((0.0059 * 1.8) - (1.96 * 0.004)) * (x))) 
+
+    def FullLog2(x):
+        return 1 - (1/math.exp(0.0059 * 1.8 * (x)))
+
+    def FullLog2975CI(x):
+        return 1 - (1/math.exp(((0.0059 * 1.8) + (1.96 * 0.004)) * (x)))
+
+    def Lin50Log(x):
+        if x <= 50: 
+            return FullLin(x)
+        else:
+            return FullLin(50) + FullLog(x) - FullLog(50)
+
+    if dExposure <= 50:
+        Lin50Log225CI = FullLin25CI(dExposure)
+        Lin50Log2 = FullLin(dExposure)
+        Lin50Log2975CI = FullLin975CI(dExposure)
+    else:
+        Lin50Log225CI = FullLin25CI(50) + FullLog225CI(dExposure) - FullLog225CI(50)
+        Lin50Log2 = FullLin(50) + FullLog2(dExposure) - FullLog2(50)
+        Lin50Log2975CI = FullLin975CI(50) + FullLog2975CI(dExposure) - FullLog2975CI(50)
+    return Lin50Log225CI, Lin50Log2, Lin50Log2975CI
+
 
 def compute_IAV(emissions):
     """Get interannaual variability from GFED4 emissions."""

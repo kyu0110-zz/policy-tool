@@ -15,7 +15,7 @@ smoke = {};  // Our namespace.
  * @param {string} serializedPolygonIds A serialized array of the IDs of the
  *     polygons to show on the map. For example: "['poland', 'moldova']".
  */
-smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeseries) {
+smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeseries, deaths) {
   // Load external libraries.
   google.load('visualization', '1.0');
   google.load('jquery', '1');
@@ -33,6 +33,8 @@ smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeser
     smoke.App.total_PM = JSON.parse(totalPM).toFixed(2);
     smoke.App.provincial = JSON.parse(provincial);
     smoke.App.timeseries = JSON.parse(timeseries);
+    smoke.App.deaths = JSON.parse(deaths);
+    console.info(deaths);
 
     // save the map layers
     smoke.App.mapids = JSON.parse(eeMapId);
@@ -93,8 +95,10 @@ smoke.App = function(mapType, boundaries) {
   $('#sensitivity').click(this.handleLayerSwitchClick.bind(this, "GEOSCHEM"));
   $('#PM').click(this.handleLayerSwitchClick.bind(this, "GEOSCHEM"));
 
-  // layer UI: population density toggle
-  $('#population').click(this.handleLayerClick.bind(this, "POPULATION"));
+  // layer UI: health impacts density toggle
+  $('#health').click(this.handleLayerClick.bind(this, "HEALTH"));
+  $('#populationdensity').click(this.handleLayerSwitchClick.bind(this, "HEALTH"));
+  $('#baselinemortality').click(this.handleLayerSwitchClick.bind(this, "HEALTH"));
 
   // Register a click handler 
   //var controlUI = 
@@ -194,6 +198,7 @@ smoke.App.prototype.handlePanelExpand = function(event) {
     $('.detailstab').hide();
     $('.panel').show();
     $('.panel .title').show().text('Total PM = ' + smoke.App.total_PM + ' ug/m^3');
+    $('.panel .subtitle').show().text('Attributable deaths: ' + smoke.App.deaths[0].toFixed(0) + ' - ' + smoke.App.deaths[2].toFixed(0));
     this.drawTimeSeries();
     this.drawSourcePie();
 }
@@ -318,6 +323,7 @@ smoke.App.prototype.newScenario = function() {
         smoke.App.total_PM = data.totalPM.toFixed(2);
         smoke.App.provincial = JSON.parse(data.provincial);
         smoke.App.timeseries = JSON.parse(data.timeseries);
+        smoke.App.deaths = JSON.parse(data.deaths);
 
         // Overlap new map
         mapType.setOpacity(0.4);
@@ -363,8 +369,12 @@ smoke.App.prototype.addLayer = function(layername) {
             id_index = 3;
         }
         var opacity = 0.4;
-    } else if (layername == "POPULATION") {
-        id_index = 4;
+    } else if (layername == "HEALTH") {
+        if ($('#populationdensity').is(':checked')) {
+            id_index = 4;
+        } else {
+            id_index = 5;
+        }
         var opacity = 0.4;
     };
 
@@ -477,11 +487,12 @@ smoke.App.DEFAULT_CENTER = {lng: 110.82, lat: 3.35};
 smoke.App.total_PM = 0.0;
 smoke.App.provincial;
 smoke.App.timeseries = 0.0;
+smoke.App.deaths;
 smoke.App.mapids;
 smoke.App.tokens;
 smoke.App.layers = ["GEOSCHEM"];
 
-smoke.App.POPULATION = false;
+smoke.App.HEALTH = false;
 smoke.App.GEOSCHEM = true;
 smoke.App.EMISSIONS = false;
 smoke.App.LANDCOVER = false;

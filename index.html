@@ -38,6 +38,7 @@
         <div class="title"></div>
         <div class="close">hide</div>
         <br>
+        <div class="subtitle"></div>
         <div class="details">
           <div class="receptorTimeSeries"></div>
           <div class='sourcePie'></div>
@@ -157,10 +158,12 @@
             </td>
             <td>
                 <label class="switch">
-                      <input type="checkbox" id="population">
+                      <input type="checkbox" id="health">
                       <div class="slider"></div>
                   </label>
-              Population density
+              Health Impact<br>
+              <input type="radio" name="health" id="populationdensity" value="populationdensity" checked="true"><label for="populationdensity">Population Density</label><br>
+              <input type="radio" name="health" id="baselinemortality" value="baselinemortality"><label for="baselinemortality">Baseline Mortality</label><br>
             </td>
           </tr>
         </table>
@@ -173,7 +176,8 @@
           '{{ boundaries | safe}}',
           '{{ totalPM | safe}}',
           '{{ provincial | safe}}',
-          '{{ timeseries | safe}}');
+          '{{ timeseries | safe}}',
+          '{{ deaths | safe}}');
     </script>
 
   </body>
