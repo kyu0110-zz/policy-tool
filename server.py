@@ -221,7 +221,7 @@ def changeLayers():
 
 
 def getLandcoverData():
-    image = ee.Image('users/karenyu/landcover');
+    image = ee.Image('users/karenyu/landcover_6classes');
     
     return image.getMapId({
         'min': '0',

@@ -412,7 +412,8 @@ smoke.App.prototype.addLegend = function() {
         degraded: {name: 'Degraded', palette: '#666666'}, 
         nonforest: {name: 'Non-forest', palette: '#fdb751'}, 
         plantation: {name: 'Tree plantation mosaic', palette: '#ff0000'}, 
-        established: {name: 'Established plantations', palette: '#800080'}
+        oldestablished: {name: 'Old est. plantations', palette: '#800080'},
+        newestablished: {name:' New est. plantations', palette: '#EED2EE'}
     };
     for (var landtype in styles) {
           var type = styles[landtype];
