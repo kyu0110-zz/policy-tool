@@ -145,22 +145,22 @@ def GetMapData(receptor, metYear, emissYear, logging, oilpalm, timber, peatlands
     tokens = []
 
     # first layer is land cover
-    landcover_img = getLandcoverData()
-    mapIds.append(landcover_img['mapid'])
-    tokens.append(landcover_img['token'])
+    landcover_mapids, landcover_tokens = getLandcoverData()
+    mapIds.append(landcover_mapids)
+    tokens.append(landcover_tokens)
 
     # second layer is emissions
     emissions = getEmissions(emissYear, logging, oilpalm, timber, peatlands, conservation)
     mapid = GetMapId(emissions.mean().select('b1'), maxVal=5e3, maskValue=1e-3, color='FFFFFF, AA0000')
-    mapIds.append(mapid['mapid'])
-    tokens.append(mapid['token'])
+    mapIds.append([mapid['mapid']])
+    tokens.append([mapid['token']])
 
-    # third layer is sensitivities
+    # third layer is sensitivities and pm
     sensitivities = getSensitivity(receptor, metYear)
     meansens = sensitivities.filterDate(str(metYear)+'-07-01', str(metYear)+'-11-30').mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
     mapid = GetMapId(meansens.select('b1'), maxVal=0.02, maskValue=0.0005)
-    mapIds.append(mapid['mapid'])
-    tokens.append(mapid['token'])
+    mapIds.append([mapid['mapid']])
+    tokens.append([mapid['token']])
     
     # fourth layer is PM
     pm = getMonthlyPM(sensitivities, emissions)
@@ -173,31 +173,29 @@ def GetMapData(receptor, metYear, emissYear, logging, oilpalm, timber, peatlands
 
     totPM = summer_pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
     mapid = GetMapId(totPM, maxVal=1e-2)
-    mapIds.append(mapid['mapid'])
-    tokens.append(mapid['token'])
+    mapIds[2].append(mapid['mapid'])
+    tokens[2].append(mapid['token'])
     
     ## Compute the total Jun - Nov mean exposure at receptor
     proj = ee.Image(pm.first()).select('b1').projection()
     totalPM = computeTotal(totPM, proj)
-    print(totalPM)
 
     # get provincial totals
     prov = getProvinceBoundaries()
     provtotal = computeRegionalTotal(totPM, prov, proj)
 
-    # fifth layer is population
+    # fourth layer is health impacts
     pop_img = getPopulationDensity('2010')
     mapid = GetMapId(pop_img, maxVal=500, color='FFFFFF, 600020')
-    mapIds.append(mapid['mapid'])
-    tokens.append(mapid['token'])
+    mapIds.append([mapid['mapid']])
+    tokens.append([mapid['token']])
 
     baseline_mortality = getBaselineMortality()
     mapid = GetMapId(baseline_mortality, maxVal=5, color='FFFFFF, 600020')
-    mapIds.append(mapid['mapid'])
-    tokens.append(mapid['token'])
+    mapIds[3].append(mapid['mapid'])
+    tokens[3].append(mapid['token'])
 
     attributable_mortality = getAttributableMortality(baseline_mortality, receptor, totalPM['b1'])
-    print(attributable_mortality)
 
     return mapIds, tokens, exposure, totalPM, provtotal, attributable_mortality
 
@@ -221,13 +219,47 @@ def changeLayers():
 
 
 def getLandcoverData():
-    image = ee.Image('users/karenyu/landcover_6classes');
-    
-    return image.getMapId({
-        'min': '0',
-        'max': '255', 
-        'format': 'png',
-        })
+    present = ee.Image('users/karenyu/marHanGfw2005_6classes')
+    BAU2010 = ee.Image('users/karenyu/future_LULC_MarHanGFW1')
+    BAU2015 = ee.Image('users/karenyu/future_LULC_MarHanGFW2')
+    BAU2020 = ee.Image('users/karenyu/future_LULC_MarHanGFW3')
+    BAU2025 = ee.Image('users/karenyu/future_LULC_MarHanGFW4')
+    BAU2030 = ee.Image('users/karenyu/future_LULC_MarHanGFW5')
+
+    sld_ramp = '<RasterSymbolizer>' + \
+          '<ColorMap type="intervals" extended="false" >' + \
+                '<ColorMapEntry color="#666666" quantity="1" label="Degraded"/>' + \
+                '<ColorMapEntry color="#000000" quantity="2" label="Intact"/>' + \
+                '<ColorMapEntry color="#fdb751" quantity="3" label="Non-Forest"/>' + \
+                '<ColorMapEntry color="#ff0000" quantity="4" label="Tree Plantation Mosaic"/>' + \
+                '<ColorMapEntry color="#800080" quantity="5" label="Old Established Plantations"/>' + \
+                '<ColorMapEntry color="#EED2EE" quantity="6" label="New Established Plantations"/>' + \
+            '</ColorMap>' + \
+        '</RasterSymbolizer>'
+
+    vizParams = { 'min': '0', 'max': '255', 'format': 'png' }
+
+    image = present.updateMask(present).sldStyle(sld_ramp)
+    presentMapID = image.getMapId(vizParams)
+
+    image = BAU2010.updateMask(BAU2010).sldStyle(sld_ramp)
+    BAU2010MapID = image.getMapId(vizParams)
+
+    image = BAU2015.updateMask(BAU2015).sldStyle(sld_ramp)
+    BAU2015MapID = image.getMapId(vizParams) 
+
+    image = BAU2020.updateMask(BAU2020).sldStyle(sld_ramp)
+    BAU2020MapID = image.getMapId(vizParams) 
+
+    image = BAU2025.updateMask(BAU2025).sldStyle(sld_ramp)
+    BAU2025MapID = image.getMapId(vizParams) 
+
+    image = BAU2030.updateMask(BAU2030).sldStyle(sld_ramp)
+    BAU2030MapID = image.getMapId(vizParams)  
+   
+    mapids = [presentMapID['mapid'], BAU2010MapID['mapid'], BAU2015MapID['mapid'], BAU2020MapID['mapid'], BAU2025MapID['mapid'], BAU2030MapID['mapid']]
+    tokens = [presentMapID['token'], BAU2010MapID['token'], BAU2015MapID['token'], BAU2020MapID['token'], BAU2025MapID['token'], BAU2030MapID['token']]
+    return mapids, tokens
 
 def getEmissions(year, logging, oilpalm, timber, peatlands, conservation):
     """Gets the dry matter emissions from GFED and converts to oc/bc"""

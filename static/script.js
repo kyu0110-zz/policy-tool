@@ -26,7 +26,7 @@ smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeser
 
   // Create the Trendy Lights app.
   google.setOnLoadCallback(function() {
-    var mapType = smoke.App.getEeMapType(JSON.parse(eeMapId)[3], JSON.parse(eeToken)[3]);
+    var mapType = smoke.App.getEeMapType(JSON.parse(eeMapId)[2][1], JSON.parse(eeToken)[2][1]);
     var app = new smoke.App(mapType, JSON.parse(boundaries));
     
     // set the timesereies values for the chart
@@ -86,6 +86,12 @@ smoke.App = function(mapType, boundaries) {
 
   // layer UI: landcover toggle
   $('#landcover').click(this.handleLayerClick.bind(this, "LANDCOVER"));
+  $('#present').click(this.handleLayerSwitchClick.bind(this, "LANDCOVER"));
+  $('#BAU2010').click(this.handleLayerSwitchClick.bind(this, "LANDCOVER"));
+  $('#BAU2015').click(this.handleLayerSwitchClick.bind(this, "LANDCOVER"));
+  $('#BAU2020').click(this.handleLayerSwitchClick.bind(this, "LANDCOVER"));
+  $('#BAU2025').click(this.handleLayerSwitchClick.bind(this, "LANDCOVER"));
+  $('#BAU2030').click(this.handleLayerSwitchClick.bind(this, "LANDCOVER"));
 
   // layer UI: emissions toggle
   $('#emissions').click(this.handleLayerClick.bind(this, "EMISSIONS"));
@@ -311,7 +317,7 @@ smoke.App.prototype.newScenario = function() {
       },
       function(data) {
         // Get new maptype
-        var mapType = smoke.App.getEeMapType(JSON.parse(data.eeMapId)[3], JSON.parse(data.eeToken)[3]);
+        var mapType = smoke.App.getEeMapType(JSON.parse(data.eeMapId)[2][1], JSON.parse(data.eeToken)[2][1]);
         console.info(data.eeMapId);
         console.info(data.totalPM);
 
@@ -357,28 +363,44 @@ smoke.App.prototype.handleLayerClick = function(layername) {
 
 smoke.App.prototype.addLayer = function(layername) {
     if (layername == "LANDCOVER") {
-        id_index = 0;
+        layer_index = 0;
+        if ($('#present').is(':checked')) {
+            id_index = 0;
+        } else if ($('#BAU2010').is(':checked')) {
+            id_index = 1; 
+        } else if ($('#BAU2015').is(':checked')) {
+            id_index = 2;
+        } else if ($('#BAU2020').is(':checked')) {
+            id_index = 3;
+        } else if ($('#BAU2025').is(':checked')) {
+            id_index = 4;
+        } else if ($('#BAU2030').is(':checked')) {
+            id_index = 5;
+        }
         var opacity = 0.8;
     } else if (layername == "EMISSIONS") {
-        id_index = 1;
+        layer_index = 1;
+        id_index = 0;
         var opacity = 0.4;
     } else if (layername == "GEOSCHEM") {
+        layer_index = 2;
         if ($('#sensitivity').is(':checked')) {
-            id_index = 2;
+            id_index = 0;
         } else {
-            id_index = 3;
+            id_index = 1;
         }
         var opacity = 0.4;
     } else if (layername == "HEALTH") {
+        layer_index = 3;
         if ($('#populationdensity').is(':checked')) {
-            id_index = 4;
+            id_index = 0;
         } else {
-            id_index = 5;
+            id_index = 1;
         }
         var opacity = 0.4;
     };
 
-    var mapType = smoke.App.getEeMapType(smoke.App.mapids[id_index], smoke.App.tokens[id_index]);
+    var mapType = smoke.App.getEeMapType(smoke.App.mapids[layer_index][id_index], smoke.App.tokens[layer_index][id_index]);
     mapType.setOpacity(opacity);
     this.map.overlayMapTypes.push(mapType);
 };
