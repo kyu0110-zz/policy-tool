@@ -150,7 +150,7 @@ def GetMapData(receptor, metYear, emissYear, logging, oilpalm, timber, peatlands
     tokens.append(landcover_tokens)
 
     # second layer is emissions
-    emissions = getEmissions(emissYear, logging, oilpalm, timber, peatlands, conservation)
+    emissions = getEmissions(emissYear, metYear, logging, oilpalm, timber, peatlands, conservation)
     mapid = GetMapId(emissions.mean().select('b1'), maxVal=5e3, maskValue=1e-3, color='FFFFFF, AA0000')
     mapIds.append([mapid['mapid']])
     tokens.append([mapid['token']])
@@ -213,11 +213,6 @@ def GetMapId(image, maxVal=0.1, maskValue=0.000000000001, color='FFFFFF, 220066'
         })
 
 
-def changeLayers():
-    """Updates layers based on input from UI"""
-    return 0
-
-
 def getLandcoverData():
     present = ee.Image('users/karenyu/marHanGfw2005_6classes')
     BAU2010 = ee.Image('users/karenyu/future_LULC_MarHanGFW1')
@@ -261,10 +256,16 @@ def getLandcoverData():
     tokens = [presentMapID['token'], BAU2010MapID['token'], BAU2015MapID['token'], BAU2020MapID['token'], BAU2025MapID['token'], BAU2030MapID['token']]
     return mapids, tokens
 
-def getEmissions(year, logging, oilpalm, timber, peatlands, conservation):
+
+def getEmissions(year, metYear, logging, oilpalm, timber, peatlands, conservation):
     """Gets the dry matter emissions from GFED and converts to oc/bc"""
 
-    monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.rangeContains('system:index', 'DM_'+str(year)+'01', 'DM_'+str(year)+'12'))
+    # get either current emissions or future emissions based on year
+    if year < 2010:
+        monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.rangeContains('system:index', 'DM_'+str(year)+'01', 'DM_'+str(year)+'12'))
+    else:
+        monthly_dm = getFutureEmissions(year, metYear)
+
     #monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filterDate('2008-01-01', '2009-01-01').sort('system:time_start', True) 
 
     if logging:
@@ -336,6 +337,71 @@ def getEmissions(year, logging, oilpalm, timber, peatlands, conservation):
 
     return emissions
 
+
+def getFutureEmissions(emissyear, metyear):
+    """Scales the transition emissions from the appropriate 5-year chunk by the IAV of the meteorological year"""
+
+    # read in IAV based on metYear
+    IAV = ee.Image(1)
+
+    # find closest year for land-use scenarios
+    if emissyear > 2025:
+        start_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW4')
+        end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW5')
+    elif emissyear > 2020:
+        start_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW3')
+        end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW4')
+    elif emissyear > 2015: 
+        start_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW2')
+        end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW3')
+    elif emissyear > 2010: 
+        start_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW1')
+        end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW2')
+    elif emissyear == 2010:
+        start_landcover = ee.Image('users/karenyu/marHanGfw2005_6classes')
+        end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW1')
+
+    # get the transition emissions
+    transition_emissions = getTransitionEmissions(start_landcover, end_landcover)
+
+    print(ee.Image(transition_emissions.first()).bandNames().getInfo())
+
+    # scale transition emissions based on IAV
+    def scale_IAV(emissions):
+        return emissions.multiply(IAV)
+
+    scaled_emissions = transition_emissions.map(scale_IAV)
+
+    return scaled_emissions
+
+
+def getTransitionEmissions(initialLandcover, finalLandcover):
+    initial_masks = []
+    final_masks = []
+
+    # order: DG, IN, NF, TM, OPL, NPL
+    for i in range(1,7):
+        initial_masks.append(initialLandcover.eq(ee.Image(i)))
+        final_masks.append(finalLandcover.eq(ee.Image(i)))
+
+    #in2in,in2dg,in2nf,in2tm,in2opl,in2npl,dg2dg,dg2nf,dg2tm,dg2opl,dg2npl,nf2nf,tm2tm,tm2nf,opl2opl,opl2nf,npl2npl
+    initial_index = [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 2, 3, 3, 4, 4, 5]
+    final_index   = [1, 0, 2, 3, 4, 5, 0, 2, 3, 4, 5, 2, 3, 2, 4, 2, 5]
+
+    emissions_all_months = ee.List([])
+
+    for month in range(0,12):
+        emiss_rates = INDO_NONPEAT[month]
+        #accumulate emissions
+        monthly_emissions = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(emiss_rates[0] * 926.625433 * 926.625433))
+        for transition_index in range(1, 16):
+            monthly_emissions = monthly_emissions.add(ee.Image(0))
+            monthly_emissions = monthly_emissions.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(emiss_rates[transition_index] * 926.625433 * 926.625433)))
+
+        # add to collection
+        emissions_all_months = emissions_all_months.add(monthly_emissions)
+
+    return ee.ImageCollection(emissions_all_months)
 
 
 def getSensitivity(receptor, year, monthly=True):
@@ -600,6 +666,21 @@ LANDCOVER_COLLECTION_ID = ''
 # Receptor sites
 RECEPTORS = ['Singapore', 'Malaysia', 'Indonesia', 'Population_weighted_SEAsia']
 DEFAULT_RECEPTOR = 'Population_weighted_SEAsia'
+
+# Data for land cover emissions
+#in2in,in2dg,in2nf,in2tm,in2opl,in2npl,dg2dg,dg2nf,dg2tm,dg2opl,dg2npl,nf2nf,tm2tm,tm2nf,opl2opl,opl2nf,npl2npl
+INDO_NONPEAT = [[0.008197090042,0.09189487345,45.08259032,2.414848632,0,99.62405558,0.5851376497,56.89003923,13.23437324,9.474651961,30.48744721,3.025035159,1.288852821,9.643030397,2.091151198,8.660805616,10.17454118],
+[0.01139663662,0.06239636031,56.45024628,3.143033855,57.85880118,32.14237698,0.9690808753,89.70646311,16.60274935,21.67981473,63.02774005,3.228240267,2.420661473,15.26761109,3.971457501,12.1041069,9.638991123],
+[0.003903939588,0.04366400351,0,0,0,0,0.8714240293,44.09290443,9.970130629,7.420294069,39.73751491,4.212207518,2.386355319,9.647900184,2.610260354,9.367637215,8.261123163],
+[0.003721238199,0.08461353334,73.67114817,0.6271246072,119.2253549,67.02342792,0.1896129203,39.70551525,3.695080593,14.11716819,11.60070125,2.786611068,0.6384868533,3.583137124,1.447893564,4.108222706,4.347909571],
+[0.04269593381,0.1564843473,1.732841888,1.526454223,3.299481933,10.99779359,1.494500312,140.0227631,16.05544109,112.9297011,77.84635536,6.282340802,2.019456548,11.03557469,4.717004999,24.37953918,7.638316017],
+[0.02731323219,0.003655800401,121.2735682,0.06076623004,0,0,1.678851633,130.4693188,21.34323882,70.09079297,67.74787327,9.938019986,4.125263717,15.89372733,7.695079308,33.55982871,22.79506765],
+[0.0337372371,0.5756916391,197.8887014,24.48579226,0,0,4.965160689,325.5810477,81.45475691,128.4848211,340.3287642,45.25855048,18.34708554,68.78541069,35.60324901,116.1209016,63.48808218],
+[0.2343221978,2.027323474,1303.542795,95.69052989,60.83012343,95.48372991,18.98220118,593.1907953,213.7176597,352.1231844,677.1915077,119.964009,95.72065985,274.8728212,163.9229257,331.4825874,166.6288735],
+[0.402160571,3.147158609,144.2447899,29.82459307,20.24387878,248.9676516,35.71717497,571.8534967,251.9015785,461.8178704,500.6391082,341.2642587,270.5614806,492.0583825,527.578186,1126.198147,227.8575944],
+[0.2643180172,1.218160114,222.2949219,12.76341971,118.7833439,194.5475882,20.24593458,382.5312947,207.0975685,216.2563633,315.3197157,144.7223586,152.1536701,181.4451014,250.2639547,577.1953486,126.38394],
+[0.2468356043,0.3724324773,115.0425349,6.555582307,93.63776922,0,4.348996864,34.73644492,24.798789,44.72874265,39.04249045,24.28327564,19.46629308,18.71915917,28.13705289,49.09576491,26.59634286],
+[0.01908487111,0.1311755492,120.6789472,0,77.89568727,493.5910992,0.5650428577,6.133650458,1.821382238,5.303140883,4.385465151,2.523862176,1.269228463,1.720818905,0.8537594324,3.510877517,1.550712832]]
 
 # CHOOSE YEAR
 SENS_YEAR = 2008
