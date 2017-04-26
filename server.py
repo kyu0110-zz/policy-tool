@@ -53,8 +53,8 @@ class DetailsHandler(webapp2.RequestHandler):
 
     def get(self):
         receptor = self.request.get('receptor')
-        metYear = self.request.get('metYear')
-        emissYear = self.request.get('emissYear')
+        metYear = int(self.request.get('metYear'))
+        emissYear = int(self.request.get('emissYear'))
         logging = self.request.get('logging')
         oilpalm = self.request.get('oilpalm')
         timber = self.request.get('timber')
@@ -62,8 +62,8 @@ class DetailsHandler(webapp2.RequestHandler):
         conservation = self.request.get('conservation')
 
         print 'Receptor = ' + receptor
-        print 'Met year = ' + metYear
-        print 'Emissions year = ' + emissYear
+        print 'Met year = ' + str(metYear)
+        print 'Emissions year = ' + str(emissYear)
         print 'logging = ' + logging
         print 'oil palm = ' + oilpalm
         print 'timber = ' + timber
@@ -271,6 +271,7 @@ def getEmissions(year, metYear, logging, oilpalm, timber, peatlands, conservatio
         conservationmask = getConservation()
 
     # get either current emissions or future emissions based on year
+    print("YEAR == ", year)
     if year < 2010:
         monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.rangeContains('system:index', 'DM_'+str(year)+'01', 'DM_'+str(year)+'12'))
     else:
@@ -340,7 +341,7 @@ def getFutureEmissions(emissyear, metyear, peatmask):
     """Scales the transition emissions from the appropriate 5-year chunk by the IAV of the meteorological year"""
 
     # read in IAV based on metYear
-    IAV = ee.Image(1)
+    IAV = ee.Image('users/karenyu/dm_fractional_'+str(metyear))
 
     # find closest year for land-use scenarios
     if emissyear > 2025:
