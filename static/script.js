@@ -65,8 +65,10 @@ smoke.App = function(mapType, boundaries) {
   this.addLegend();
 
   // Register a click handler to show a panel when user clicks a source region
-  this.map.data.addListener('mouseover', this.handlePolygonHover.bind(this));
-  this.map.data.addListener('mouseout', this.handlePolygonOut.bind(this));
+  $('#peatlands').mouseover(this.handlePolygonHover.bind(this));
+  $('#peatlands').mouseout(this.handlePolygonOut.bind(this));
+  //this.map.data.addListener('mouseover', this.handlePolygonHover.bind(this));
+  //this.map.data.addListener('mouseout', this.handlePolygonOut.bind(this));
 
   // Draw hidden details panel
   $('.detailstab').click(this.handlePanelExpand.bind(this));
@@ -145,7 +147,7 @@ smoke.App.prototype.addBoundaries = function(regions) {
   }).bind(this));
   this.map.data.setStyle(function(feature) {
       return {
-          'strokeWeight': 5,
+          'strokeWeight': 2,
           'fillOpacity': 0.0,
           'fillColor': 'red',
           'strokeColor': 'red',
@@ -159,19 +161,40 @@ smoke.App.prototype.addBoundaries = function(regions) {
  * Handles a click on a source region. 
  */
 smoke.App.prototype.handlePolygonHover = function(event) {
-    var feature = event.feature;
+    //var feature = event.feature;
+    //var feature = this.map.data.getFeatureById();
+
+    this.map.data.setStyle(function(feature) {
+      return {
+          'strokeWeight': 2,
+          'fillOpacity': 0.3,
+          'fillColor': 'red',
+          'strokeColor': 'red',
+          'strokeOpacity': 0.6
+      };
+  });
 
     // Highlight region
-    this.map.data.overrideStyle(feature, {
-        strokeOpacity: 0.6
-    });
+//    this.map.data.overrideStyle(feature, {
+//        strokeOpacity: 0.6
+//    });
 };
 
 /** 
  * Handles a click on a source region. 
  */
-smoke.App.prototype.handlePolygonOut = function(event) {
-    this.map.data.revertStyle();
+smoke.App.prototype.handlePolygonOut = function(event) { 
+    this.map.data.setStyle(function(feature) {
+      return {
+          'strokeWeight': 3,
+          'fillOpacity': 0.0,
+          'fillColor': 'red',
+          'strokeColor': 'red',
+          'strokeOpacity': 0.0
+      };
+    });
+
+    //this.map.data.revertStyle();
 };
 
 /**
@@ -514,6 +537,7 @@ smoke.App.deaths;
 smoke.App.mapids;
 smoke.App.tokens;
 smoke.App.layers = ["GEOSCHEM"];
+smoke.App.ids = [];
 
 smoke.App.HEALTH = false;
 smoke.App.GEOSCHEM = true;

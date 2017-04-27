@@ -480,6 +480,16 @@ def getMonthlyPM(sensitivities, emiss):
     # get emissions
     #emiss = ee.Image('users/karenyu/placeholder_emissions')
 
+    # aggregate emissions to coarser grid
+    #grid = ee.FeatureCollection('ft:1IuhHVzSYD4KD2g0WiDdQixNApoR5lULsvtOkEYW5')
+    #modisScale = ee.Image(ee.ImageCollection('MODIS/006/MOD14A2').first())
+
+    def aggregate_image(image):
+        regridded = image.updateMask(image).reduceRegions(collection=grid, reducer=ee.Reducer.sum(), scale=modisScale.projection().nominalScale(), tileScale=1)
+        return regridded
+
+    #coarse_data = emiss.map(aggregate_image)
+
     combined_data = sensitivities.toList(12).zip(emiss.toList(12))
 
     def computePM(data):
