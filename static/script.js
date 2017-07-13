@@ -452,6 +452,16 @@ smoke.App.prototype.handleLayerSwitchClick = function(layername) {
 
 smoke.App.prototype.addLegend = function() {
     var legend = document.getElementById('legend');
+    //smoke.App.addLandcoverLegend(legend); 
+    smoke.App.addEmissionsLegend(legend); 
+    this.map.controls[google.maps.ControlPosition.LEFT_BOTTOM].push(legend);
+};
+
+
+/***
+ * Adds legend for land cover data
+ */
+smoke.App.addLandcoverLegend = function(legend) {
     var styles = {
         intact: {name: 'Intact', palette: '#000000'}, 
         degraded: {name: 'Degraded', palette: '#666666'}, 
@@ -460,16 +470,41 @@ smoke.App.prototype.addLegend = function() {
         oldestablished: {name: 'Old est. plantations', palette: '#800080'},
         newestablished: {name:' New est. plantations', palette: '#EED2EE'}
     };
+    var div = document.createElement('div');
+    div.innerHTML = 'Land cover';
+    legend.appendChild(div);
     for (var landtype in styles) {
           var type = styles[landtype];
           var name = type.name;
           var palette = type.palette;
           var div = document.createElement('div');
-          div.innerHTML = '<div style="width:10px; height:10px; float:left; background-color:' + palette + '"></div>' + name
+          div.innerHTML = '<div style="width:10px; height:10px; float:left; background-color:' + palette + '"></div>' + name;
           legend.appendChild(div);
     };
-    this.map.controls[google.maps.ControlPosition.LEFT_BOTTOM].push(legend);
 };
+
+smoke.App.addEmissionsLegend = function(legend) {
+    var div = document.createElement('div');
+    div.innerHTML = 'Emissions (kg DM)';
+    legend.appendChild(div);
+   
+    var colors = ['#FFFFFF', '#FFDDDD', '#DDAAAA', '#BB5555', '#AA0000'];
+    var arrayLength = colors.length;
+    for (var i = 0; i < arrayLength; i++) {
+        var div = document.createElement('div');
+        div.innerHTML = '<div style="width:10px; height:10px; float:left; background-color:' + colors[i] + '"></div>'; 
+        legend.appendChild(div);
+    };
+};
+
+
+smoke.App.addGCLegend = function(legend) {
+};
+
+
+smoke.App.addHealthLegend = function(legend) {
+};
+
 
 /** 
  * Adds a menu to the left side
