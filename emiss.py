@@ -17,7 +17,8 @@ def getCurrent(year, metYear, logging, oilpalm, timber, peatlands, conservation)
     print("YEAR == ", year)
     if year < 2010:
         # gfed in kg DM
-        monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.rangeContains('system:index', 'DM_'+str(year)+'01', 'DM_'+str(year)+'12'))
+        #monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.rangeContains('system:index', 'DM_'+str(year)+'01', 'DM_'+str(year)+'12'))
+        monthly_dm = ee.ImageCollection('users/karenyu/gfed4').filterDate('2006-01-1', '2006-12-31').sort('system:time_start', True)
     else:
         monthly_dm = getFuture(year, metYear, peatmask)
 
@@ -45,18 +46,23 @@ def getCurrent(year, metYear, logging, oilpalm, timber, peatlands, conservation)
             maskedEmissions = maskedEmissions.updateMask(conservationmask)
 
         land_types = ['PET', 'DEF', 'AGRI', 'SAV', 'TEMP', 'PLT']
-        oc_ef = [2.157739E+23, 2.157739E+23, 2.082954E+23, 1.612156E+23, 1.885199E+23, 1.885199E+23]
-        bc_ef = [2.835829E+22, 2.835829E+22, 2.113069E+22, 2.313836E+22, 2.574832E+22, 2.574832E+22]
+        #oc_ef = [2.157739E+23, 2.157739E+23, 2.082954E+23, 1.612156E+23, 1.885199E+23, 1.885199E+23]
+        #bc_ef = [2.835829E+22, 2.835829E+22, 2.113069E+22, 2.313836E+22, 2.574832E+22, 2.574832E+22]
+        #bands = ['b5', 'b4', 'b6', 'b1', 'b3', 'b2']
+        bands = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6']
+
+        oc_ef = [2.62, 9.6, 9.6, 4.71, 6.02, 2.3]
+        bc_ef = [0.37, 0.5, 0.5, 0.52, 0.04, 0.75]
 
         total_oc = ee.Image(0).rename(['b1'])
         total_bc = ee.Image(0).rename(['b1'])
 
         for land_type in range(0, len(land_types)): 
-            oc_scale = oc_ef[land_type] * 6.022e-23 * 0.012  # kg OC/kg DM
-            bc_scale = bc_ef[land_type] * 6.022e-23 * 0.012  # kg BC/kg DM
+            oc_scale = oc_ef[land_type] #* 6.022e-23 * 12.0  # g OC/kg DM
+            bc_scale = bc_ef[land_type] #* 6.022e-23 * 12.0  # g BC/kg DM
 
-            oc_fine = maskedEmissions.multiply(ee.Image(oc_scale))  # g OC
-            bc_fine = maskedEmissions.multiply(ee.Image(bc_scale))  # g BC
+            oc_fine = maskedEmissions.select(bands[land_type]).multiply(ee.Image(oc_scale))  # g OC
+            bc_fine = maskedEmissions.select(bands[land_type]).multiply(ee.Image(bc_scale))  # g BC
 
             # interpolate to current grid (is this necessary in earth engine?)
 
@@ -65,13 +71,13 @@ def getCurrent(year, metYear, logging, oilpalm, timber, peatlands, conservation)
             total_bc = total_bc.add(bc_fine)
 
         # split into GEOS-Chem hydrophobic and hydrophilic fractions
-        ocpo = total_oc.multiply(ee.Image(0.5 ))#* 2.1 ))  # kg OA
-        ocpi = total_oc.multiply(ee.Image(0.5 ))#* 2.1 ))  # kg OA
-        bcpo = total_bc.multiply(ee.Image(0.8 ))        # kg BC
-        bcpi = total_bc.multiply(ee.Image(0.2 ))        # kg BC
+        ocpo = total_oc.multiply(ee.Image(0.5))# * 2.1 ))  # g OA
+        ocpi = total_oc.multiply(ee.Image(0.5))# * 2.1 ))  # g OA
+        bcpo = total_bc.multiply(ee.Image(0.8 ))        # g BC
+        bcpi = total_bc.multiply(ee.Image(0.2 ))        # g BC
 
-        emissions_philic = ocpi.add(bcpi).multiply(ee.Image(1.0 / 6.0e3))
-        emissions_phobic = ocpo.add(bcpo).multiply(ee.Image(1.0/ 6.0e3))
+        emissions_philic = ocpi.add(bcpi).multiply(ee.Image(1.0e-3))  # to kg OC/BC
+        emissions_phobic = ocpo.add(bcpo).multiply(ee.Image(1.0e-3))
 
         return emissions_philic.addBands(emissions_phobic, ['b1']).rename(['b1', 'b2'])
 

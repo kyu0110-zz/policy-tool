@@ -290,8 +290,8 @@ def getMonthlyPM(sensitivities, emiss):
     def computePM(data):
         sensitivity = ee.Image(ee.List(data).get(0))
         emission = ee.Image(ee.List(data).get(1))
-        pm_philic = sensitivity.select('b1').multiply(emission.select('b1')).multiply(ee.Image(SCALE_FACTOR/30.0))
-        pm_phobic = sensitivity.select('b2').multiply(emission.select('b2')).multiply(ee.Image(SCALE_FACTOR/30.0))
+        pm_philic = sensitivity.select('b1').multiply(emission.select('b1')).multiply(ee.Image(SCALE_FACTOR/30.0/30.0))
+        pm_phobic = sensitivity.select('b2').multiply(emission.select('b2')).multiply(ee.Image(SCALE_FACTOR/30.0/30.0))
         return pm_philic.add(pm_phobic).set('system:footprint', sensitivity.get('system:footprint')).set('system:time_start', sensitivity.get('system:time_start'))
 
     # iterate over all files
