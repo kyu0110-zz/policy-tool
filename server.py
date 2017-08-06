@@ -32,7 +32,7 @@ class MainHandler(webapp2.RequestHandler):
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
 
-    mapIds, tokens, exposure, totalPM, provtotal, mort = GetMapData('Malaysia', 2008, 2008, False, False, False, False, False)
+    mapIds, tokens, exposure, totalPM, provtotal, mort = GetMapData('Singapore', 2006, 2006, False, False, False, False, False)
 
     print(mapIds)
 
@@ -154,7 +154,7 @@ def GetMapData(receptor, metYear, emissYear, logging, oilpalm, timber, peatlands
     tokens.append(landcover_tokens)
 
     # second layer is emissions
-    emissions = emiss.getCurrent(emissYear, metYear, logging, oilpalm, timber, peatlands, conservation)
+    emissions = emiss.getGFED4(emissYear, metYear, logging, oilpalm, timber, peatlands, conservation)
     emissions_display = emissions.mean().select('b1').add(emissions.mean().select('b2')).multiply(1e9*2.592e-6*784.0e-6)
     if emissYear > 2009:
         mapid = GetMapId(emissions_display, maxVal=1.0, maskValue=1e-6, color='FFFFFF, AA0000')

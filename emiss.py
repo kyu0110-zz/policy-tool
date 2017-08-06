@@ -1,6 +1,6 @@
 import ee
 
-def getCurrent(year, metYear, logging, oilpalm, timber, peatlands, conservation):
+def getGFED4(year, metYear, logging, oilpalm, timber, peatlands, conservation):
     """Gets the dry matter emissions from GFED and converts to oc/bc"""
 
     peatmask = getPeatlands()
@@ -18,7 +18,7 @@ def getCurrent(year, metYear, logging, oilpalm, timber, peatlands, conservation)
     if year < 2010:
         # gfed in kg DM
         #monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.rangeContains('system:index', 'DM_'+str(year)+'01', 'DM_'+str(year)+'12'))
-        monthly_dm = ee.ImageCollection('users/karenyu/gfed4').filterDate('2006-01-1', '2006-12-31').sort('system:time_start', True)
+        monthly_dm = ee.ImageCollection('users/karenyu/gfed4').filterDate(str(year) + '-01-1', str(year) + '-12-31').sort('system:time_start', True)
     else:
         monthly_dm = getFuture(year, metYear, peatmask)
 

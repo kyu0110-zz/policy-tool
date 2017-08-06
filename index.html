@@ -61,13 +61,25 @@
         <table>
             <tr>
                 <td>
+                    Emission Inventory <br>
+                    <form>
+                        <select id="emissScenario" name="emissScenario">
+                            <option value="GFED4">GFED4.1 with small fires</option>
+                            <option value="Miriam">Downscaled GFED</option>
+                            <option value="peatprotect">Peatlands protection</option>
+                        </select>
+                    </form>
+                </td>
+                </tr>
+                <tr>
+                <td>
                     Choose receptor site
                     <br>
                     <form>
                     <select id="receptor" name="receptor">
-                    <option value="Malaysia">Malaysia</option>
                     <option value="Singapore">Singapore</option>
                     <option value="Indonesia">Indonesia</option>
+                    <option value="Malaysia">Malaysia</option>
                     </select>
                     </form>
                 </td>
@@ -79,7 +91,7 @@
                     <option value=2005>2005</option>
                     <option value=2006>2006</option>
                     <option value=2007>2007</option>
-                    <option value=2008 selected="selected">2008</option>
+                    <option value=2006 selected="selected">2006</option>
                     <option value=2009>2009</option>
                 </select>
                 </form>
@@ -90,19 +102,9 @@
               Emissions year
               <br>
               <form oninput="emissYearOutput.value = parseInt(emissYear.value);" onsubmit="return false;">
-              <input id="emissYear" name="emissYear" type="range" min="1997" max="2030" value="2008">
-              <output for="emissYear" name="emissYearOutput">2008</output>
+              <input id="emissYear" name="emissYear" type="range" min="1997" max="2030" value="2006">
+              <output for="emissYear" name="emissYearOutput">2006</output>
               </form>
-                </td>
-                <td>
-                    Emission scenario <br>
-                    <form>
-                        <select id="emissScenario" name="emissScenario">
-                            <option value="BAU">Business as usual</option>
-                            <option value="HiDeforest">High deforestation</option>
-                            <option value="peatprotect">Peatlands protection</option>
-                        </select>
-                    </form>
                 </td>
             </tr>
             <tr>
