@@ -32,7 +32,7 @@ class MainHandler(webapp2.RequestHandler):
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
 
-    mapIds, tokens, exposure, totalPM, provtotal, mort = GetMapData('Singapore', 2006, 2006, False, False, False, False, False)
+    mapIds, tokens, exposure, totalPM, provtotal, mort = GetMapData('GFED4', 'Singapore', 2006, 2006, False, False, False, False, False)
 
     print(mapIds)
 
@@ -52,10 +52,38 @@ class MainHandler(webapp2.RequestHandler):
     self.response.out.write(template.render(template_values))
 
 
+class ExportHandler(webapp2.RequestHandler):
+    """A servlet to handle requests for image exports."""
+    
+    def DoPost(self):
+        """Kicks off export of an image for the specified year and region.
+        HTTP Parameters:
+        coordinates: The coordinates of the polygon to export.
+        filename: The final filename of the file to create in the user's Drive.
+        client_id: The ID of the client (for the Channel API).
+        year: The year of the image, in "YYYY" format.
+        """
+
+        # Kick off an export runner to start and monitor the EE export task.
+        # Note: The work "task" is used by both Earth Engine and App Engine to refer
+        # to two different things. "TaskQueue" is an async App Engine service.
+        taskqueue.add(url='/details', params={
+            'scenario': self.request.get('scenario'),
+            'receptor': self.request.get('receptor'),
+            'metYear': self.request.get('metYear'),
+            'emissYear': self.request.get('emissYear'),
+            'logging': self.request.get('logging'),
+            'oilpalm': self.request.get('oilpalm'),
+            'timber': self.request.get('timber'),
+            'peatlands': self.request.get('peatlands'),
+            'conservation': self.request.get('conservation')}
+            )
+
 class DetailsHandler(webapp2.RequestHandler):
     """A servlet to handle requests from UI."""
 
     def get(self):
+        scenario = self.request.get('scenario')
         receptor = self.request.get('receptor')
         metYear = int(self.request.get('metYear'))
         emissYear = int(self.request.get('emissYear'))
@@ -64,6 +92,8 @@ class DetailsHandler(webapp2.RequestHandler):
         timber = self.request.get('timber')
         peatlands = self.request.get('peatlands')
         conservation = self.request.get('conservation')
+
+        print('scenario', scenario)
 
         print 'Receptor = ' + receptor
         print 'Met year = ' + str(metYear)
@@ -103,7 +133,8 @@ class DetailsHandler(webapp2.RequestHandler):
         print(logging_bool)
 
         if receptor in RECEPTORS:
-            mapIds, tokens, exposure, totalPM, provtotal, mort = GetMapData(receptor, metYear, emissYear, logging_bool, oilpalm_bool, timber_bool, peatlands_bool, conservation_bool)
+
+            mapIds, tokens, exposure, totalPM, provtotal, mort = GetMapData(scenario, receptor, metYear, emissYear, logging_bool, oilpalm_bool, timber_bool, peatlands_bool, conservation_bool)
         else:
             mapIds  = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
             tokens = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
@@ -133,16 +164,16 @@ class DetailsHandler(webapp2.RequestHandler):
 # http://webapp-improved.appspot.com/tutorials/quickstart.html
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
-    ('/details', DetailsHandler)
+    ('/details', DetailsHandler),
+    ('/export', ExportHandler)
 ], debug=True)
-
 
         
 ###############################################################################
 #                                   Helpers.                                  #
 ###############################################################################
 
-def GetMapData(receptor, metYear, emissYear, logging, oilpalm, timber, peatlands, conservation ):
+def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber, peatlands, conservation ):
     """Returns two lists with mapids and tokens of the different map layers"""
     # a list of ids for different layers
     mapIds = []
@@ -154,12 +185,17 @@ def GetMapData(receptor, metYear, emissYear, logging, oilpalm, timber, peatlands
     tokens.append(landcover_tokens)
 
     # second layer is emissions
-    emissions = emiss.getGFED4(emissYear, metYear, logging, oilpalm, timber, peatlands, conservation)
-    emissions_display = emissions.mean().select('b1').add(emissions.mean().select('b2')).multiply(1e9*2.592e-6*784.0e-6)
-    if emissYear > 2009:
-        mapid = GetMapId(emissions_display, maxVal=1.0, maskValue=1e-6, color='FFFFFF, AA0000')
+    emissions = emiss.getEmissions(scenario, emissYear, metYear, logging, oilpalm, timber, peatlands, conservation)
+
+    if scenario == 'GFED4': 
+        scale = 1e9 * 2.592e-6 / 784.0e6
     else:
-        mapid = GetMapId(emissions_display, maxVal=1.0, maskValue=1e-3, color='FFFFFF, AA0000')
+        scale = 1e9 * 2.592e-6 / (926.0 * 926)
+
+    print(ee.Image(emissions.first()).bandNames().getInfo())
+    emissions_display = emissions.mean().select('b1').add(emissions.mean().select('b2')).multiply(scale)
+    mapid = GetMapId(emissions_display, maxVal=2e0, maskValue=1e-6, color='FFFFFF, AA0000')
+
     mapIds.append([mapid['mapid']])
     tokens.append([mapid['token']])
 

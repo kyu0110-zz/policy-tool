@@ -329,6 +329,7 @@ smoke.App.prototype.newScenario = function() {
     $.getJSON(
       '/details',
       {
+         scenario: $('#scenario').val(),
          receptor: $('#receptor').val(),
          metYear: $('#metYear').val(),
          emissYear: $('#emissYear').val(),
@@ -453,7 +454,7 @@ smoke.App.prototype.handleLayerSwitchClick = function(layername) {
 smoke.App.prototype.addLegend = function() {
     var legend = document.getElementById('legend');
     //smoke.App.addLandcoverLegend(legend); 
-    smoke.App.addEmissionsLegend(legend); 
+    //smoke.App.addEmissionsLegend(legend); 
     this.map.controls[google.maps.ControlPosition.LEFT_BOTTOM].push(legend);
 };
 
@@ -485,7 +486,7 @@ smoke.App.addLandcoverLegend = function(legend) {
 
 smoke.App.addEmissionsLegend = function(legend) {
     var div = document.createElement('div');
-    div.innerHTML = 'Emissions (kg DM)';
+    div.innerHTML = 'Emissions (ug OC+BC / m^2 / s)';
     legend.appendChild(div);
    
     var colors = ['#FFFFFF', '#FFDDDD', '#DDAAAA', '#BB5555', '#AA0000'];
@@ -495,6 +496,7 @@ smoke.App.addEmissionsLegend = function(legend) {
         div.innerHTML = '<div style="width:10px; height:10px; float:left; background-color:' + colors[i] + '"></div>'; 
         legend.appendChild(div);
     };
+    div.innerHTML = '0            2';
 };
 
 

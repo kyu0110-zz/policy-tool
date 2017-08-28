@@ -1,8 +1,9 @@
 import ee
 
-def getGFED4(year, metYear, logging, oilpalm, timber, peatlands, conservation):
-    """Gets the dry matter emissions from GFED and converts to oc/bc"""
+def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, conservation):
+    """Gets the dry matter emissions from GFED4 and converts to oc/bc using emission factors associated with GFED4"""
 
+    print("SCENARIO", scenario)
     peatmask = getPeatlands()
     if logging:
         loggingmask = getLogging()
@@ -13,14 +14,14 @@ def getGFED4(year, metYear, logging, oilpalm, timber, peatlands, conservation):
     if conservation:
         conservationmask = getConservation()
 
-    # get either current emissions or future emissions based on year
+    # get emissions based on transitions or from GFED 
     print("YEAR == ", year)
-    if year < 2010:
+    if scenario=='GFED4':
         # gfed in kg DM
         #monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.rangeContains('system:index', 'DM_'+str(year)+'01', 'DM_'+str(year)+'12'))
         monthly_dm = ee.ImageCollection('users/karenyu/gfed4').filterDate(str(year) + '-01-1', str(year) + '-12-31').sort('system:time_start', True)
     else:
-        monthly_dm = getFuture(year, metYear, peatmask)
+        monthly_dm = getDownscaled(year, metYear, peatmask)
 
     #monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filterDate('2008-01-01', '2009-01-01').sort('system:time_start', True) 
 
@@ -29,13 +30,12 @@ def getGFED4(year, metYear, logging, oilpalm, timber, peatlands, conservation):
 
     # function to compute oc and bc emissions from dm
     def get_oc_bc(dm_emissions):
-   
+               
         # first mask out data from regions that are turned off
         if logging:
             maskedEmissions = dm_emissions.updateMask(loggingmask)
         else:
             maskedEmissions = dm_emissions
-
         if oilpalm:
             maskedEmissions = maskedEmissions.updateMask(oilpalmmask)
         if timber:
@@ -48,12 +48,13 @@ def getGFED4(year, metYear, logging, oilpalm, timber, peatlands, conservation):
         land_types = ['PET', 'DEF', 'AGRI', 'SAV', 'TEMP', 'PLT']
         #oc_ef = [2.157739E+23, 2.157739E+23, 2.082954E+23, 1.612156E+23, 1.885199E+23, 1.885199E+23]
         #bc_ef = [2.835829E+22, 2.835829E+22, 2.113069E+22, 2.313836E+22, 2.574832E+22, 2.574832E+22]
+
         #bands = ['b5', 'b4', 'b6', 'b1', 'b3', 'b2']
         bands = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6']
-
+        
         oc_ef = [2.62, 9.6, 9.6, 4.71, 6.02, 2.3]
         bc_ef = [0.37, 0.5, 0.5, 0.52, 0.04, 0.75]
-
+        
         total_oc = ee.Image(0).rename(['b1'])
         total_bc = ee.Image(0).rename(['b1'])
 
@@ -61,11 +62,12 @@ def getGFED4(year, metYear, logging, oilpalm, timber, peatlands, conservation):
             oc_scale = oc_ef[land_type] #* 6.022e-23 * 12.0  # g OC/kg DM
             bc_scale = bc_ef[land_type] #* 6.022e-23 * 12.0  # g BC/kg DM
 
-            oc_fine = maskedEmissions.select(bands[land_type]).multiply(ee.Image(oc_scale))  # g OC
-            bc_fine = maskedEmissions.select(bands[land_type]).multiply(ee.Image(bc_scale))  # g BC
+            band_number = bands[land_type]
+
+            oc_fine = maskedEmissions.select(band_number).multiply(ee.Image(oc_scale))  # g OC
+            bc_fine = maskedEmissions.select(band_number).multiply(ee.Image(bc_scale))  # g BC
 
             # interpolate to current grid (is this necessary in earth engine?)
-
             # sum up the total for each type
             total_oc = total_oc.add(oc_fine)
             total_bc = total_bc.add(bc_fine)
@@ -81,11 +83,44 @@ def getGFED4(year, metYear, logging, oilpalm, timber, peatlands, conservation):
 
         return emissions_philic.addBands(emissions_phobic, ['b1']).rename(['b1', 'b2'])
 
-    emissions = monthly_dm.map(get_oc_bc)
+
+    def convert_transition_emissions(oc_bc_emissions):
+        # first mask out data from regions that are turned off
+        if logging:
+            maskedEmissions = oc_bc_emissions.updateMask(loggingmask)
+        else:
+            maskedEmissions = oc_bc_emissions
+        if oilpalm:
+            maskedEmissions = maskedEmissions.updateMask(oilpalmmask)
+        if timber:
+            maskedEmissions = maskedEmissions.updateMask(timbermask)
+        if peatlands:
+            maskedEmissions = maskedEmissions.updateMask(peatmask)
+        if conservation:
+            maskedEmissions = maskedEmissions.updateMask(conservationmask)
+
+        # split into GEOS-Chem hydrophobic and hydrophilic fractions
+        ocpo = oc_bc_emissions.select('oc').multiply(ee.Image(0.5))# * 2.1 ))  # g OA
+        ocpi = oc_bc_emissions.select('oc').multiply(ee.Image(0.5))# * 2.1 ))  # g OA
+        bcpo = oc_bc_emissions.select('bc').multiply(ee.Image(0.8))        # g BC
+        bcpi = oc_bc_emissions.select('bc').multiply(ee.Image(0.2))        # g BC
+
+        emissions_philic = ocpi.add(bcpi).multiply(ee.Image(1.0e-3)).rename(['b1'])
+        emissions_phobic = ocpo.add(bcpo).multiply(ee.Image(1.0e-3)).rename(['b1'])
+
+
+        return emissions_philic.addBands(emissions_phobic, ['b1']).rename(['b1', 'b2'])
+
+
+    if scenario=='GFED4':
+        emissions = monthly_dm.map(get_oc_bc)
+    else:
+        emissions = monthly_dm.map(convert_transition_emissions)
 
     return emissions
 
-def getFuture(emissyear, metyear, peatmask):
+
+def getDownscaled(emissyear, metyear, peatmask):
     """Scales the transition emissions from the appropriate 5-year chunk by the IAV of the meteorological year"""
 
     # read in IAV based on metYear
@@ -104,7 +139,7 @@ def getFuture(emissyear, metyear, peatmask):
     elif emissyear > 2010: 
         start_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW1')
         end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW2')
-    elif emissyear == 2010:
+    elif emissyear > 2005:
         start_landcover = ee.Image('users/karenyu/marHanGfw2005_6classes')
         end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW1')
 
@@ -144,6 +179,10 @@ def getTransition(initialLandcover, finalLandcover, peatmask):
     #in2in,in2dg,in2nf,in2tm,in2opl,in2npl,dg2dg,dg2nf,dg2tm,dg2opl,dg2npl,nf2nf,tm2tm,tm2nf,opl2opl,opl2nf,npl2npl
     initial_index = [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 2, 3, 3, 4, 4, 5]
     final_index   = [1, 0, 2, 3, 4, 5, 0, 2, 3, 4, 5, 2, 3, 2, 4, 2, 5]
+    gfed_index    = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 3, 5, 5, 5]
+
+    oc_ef = [2.62, 9.6, 9.6, 4.71, 6.02, 2.3]
+    bc_ef = [0.37, 0.5, 0.5, 0.52, 0.04, 0.75]
 
     emissions_all_months = ee.List([])
 
@@ -155,22 +194,36 @@ def getTransition(initialLandcover, finalLandcover, peatmask):
         indo_nonpeat_rates = INDO_NONPEAT[month]
         indo_peat_rates = INDO_PEAT[month]
         #accumulate emissions    926.625433
-        kali_nonpeat_emissions = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_nonpeat_rates[0] * scaling_factor).updateMask(kali_mask).updateMask(peatmask))
-        kali_peat_emissions = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_peat_rates[0] * scaling_factor).updateMask(kali_mask).updateMask(reverse_peatmask))
-        suma_nonpeat_emissions = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_nonpeat_rates[0] * scaling_factor).updateMask(suma_mask).updateMask(peatmask))
-        suma_peat_emissions = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_peat_rates[0] * scaling_factor).updateMask(suma_mask).updateMask(reverse_peatmask))
-        indo_nonpeat_emissions = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_nonpeat_rates[0] * scaling_factor).updateMask(indo_mask).updateMask(peatmask))
-        indo_peat_emissions = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_peat_rates[0] * scaling_factor).updateMask(indo_mask).updateMask(reverse_peatmask))
+        kali_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_nonpeat_rates[0] * scaling_factor * oc_ef[1]).updateMask(kali_mask).updateMask(peatmask))
+        kali_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_nonpeat_rates[0] * scaling_factor * bc_ef[1]).updateMask(kali_mask).updateMask(peatmask))
+        kali_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_peat_rates[0] * scaling_factor * oc_ef[1]).updateMask(kali_mask).updateMask(reverse_peatmask))
+        kali_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_peat_rates[0] * scaling_factor * bc_ef[1]).updateMask(kali_mask).updateMask(reverse_peatmask))
+        suma_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_nonpeat_rates[0] * scaling_factor * oc_ef[1]).updateMask(suma_mask).updateMask(peatmask))
+        suma_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_nonpeat_rates[0] * scaling_factor * bc_ef[1]).updateMask(suma_mask).updateMask(peatmask))
+        suma_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_peat_rates[0] * scaling_factor * oc_ef[1]).updateMask(suma_mask).updateMask(reverse_peatmask))
+        suma_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_peat_rates[0] * scaling_factor * bc_ef[1]).updateMask(suma_mask).updateMask(reverse_peatmask))
+        indo_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_nonpeat_rates[0] * scaling_factor * oc_ef[1]).updateMask(indo_mask).updateMask(peatmask))
+        indo_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_nonpeat_rates[0] * scaling_factor * bc_ef[1]).updateMask(indo_mask).updateMask(peatmask))
+        indo_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_peat_rates[0] * scaling_factor * oc_ef[1]).updateMask(indo_mask).updateMask(reverse_peatmask))
+        indo_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_peat_rates[0] * scaling_factor * bc_ef[1]).updateMask(indo_mask).updateMask(reverse_peatmask))
         for transition_index in range(1, 16):
-            kali_nonpeat_emissions = kali_nonpeat_emissions.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_nonpeat_rates[transition_index] * scaling_factor)))
-            kali_peat_emissions = kali_peat_emissions.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_peat_rates[transition_index] * scaling_factor)))
-            suma_nonpeat_emissions = suma_nonpeat_emissions.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_nonpeat_rates[transition_index] * scaling_factor)))
-            suma_peat_emissions = suma_peat_emissions.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_peat_rates[transition_index] * scaling_factor)))
-            indo_nonpeat_emissions = indo_nonpeat_emissions.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_nonpeat_rates[transition_index] * scaling_factor)))
-            indo_peat_emissions = indo_peat_emissions.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_peat_rates[transition_index] * scaling_factor)))
+            kali_nonpeat_oc = kali_nonpeat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_nonpeat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
+            kali_nonpeat_bc = kali_nonpeat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_nonpeat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
+            kali_peat_oc = kali_peat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_peat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
+            kali_peat_bc = kali_peat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_peat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
+            suma_nonpeat_oc = suma_nonpeat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_nonpeat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
+            suma_nonpeat_bc = suma_nonpeat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_nonpeat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
+            suma_peat_oc = suma_peat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_peat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
+            suma_peat_bc = suma_peat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_peat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
+            indo_nonpeat_oc = indo_nonpeat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_nonpeat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
+            indo_nonpeat_bc = indo_nonpeat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_nonpeat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
+            indo_peat_oc = indo_peat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_peat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
+            indo_peat_bc = indo_peat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_peat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
 
         # add to collection
-        emissions_all_months = emissions_all_months.add(kali_nonpeat_emissions.unmask().add(kali_peat_emissions.unmask()).add(suma_nonpeat_emissions.unmask()).add(suma_peat_emissions.unmask()).add(indo_nonpeat_emissions.unmask()).add(indo_peat_emissions.unmask()))
+        oc = kali_peat_oc.unmask().add(kali_nonpeat_oc.unmask()).add(indo_peat_oc.unmask()).add(indo_nonpeat_oc.unmask()).add(suma_peat_oc.unmask()).add(suma_nonpeat_oc.unmask())
+        bc = kali_peat_bc.unmask().add(kali_nonpeat_bc.unmask()).add(indo_peat_bc.unmask()).add(indo_nonpeat_bc.unmask()).add(suma_peat_bc.unmask()).add(suma_nonpeat_bc.unmask())
+        emissions_all_months = emissions_all_months.add(oc.addBands(bc).rename(['oc', 'bc']))
 
     return ee.ImageCollection(emissions_all_months)
 
