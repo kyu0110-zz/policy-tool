@@ -140,8 +140,8 @@ def getDownscaled(emissyear, metyear, peatmask):
         start_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW1')
         end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW2')
     elif emissyear > 2005:
-        start_landcover = ee.Image('users/karenyu/marHanGfw2005_6classes')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW1')
+        start_landcover = ee.Image('users/karenyu/marHanS2005_sin')
+        end_landcover = ee.Image('users/karenyu/marHanS2010_sin')
 
     # get the transition emissions
     transition_emissions = getTransition(start_landcover, end_landcover, peatmask)
@@ -191,8 +191,8 @@ def getTransition(initialLandcover, finalLandcover, peatmask):
         kali_peat_rates = KALI_PEAT[month]
         suma_nonpeat_rates = SUMA_NONPEAT[month]
         suma_peat_rates = SUMA_PEAT[month]
-        indo_nonpeat_rates = INDO_NONPEAT[month]
-        indo_peat_rates = INDO_PEAT[month]
+        indo_nonpeat_rates = SUMA_NONPEAT[month] #INDO_NONPEAT[month]
+        indo_peat_rates = SUMA_PEAT[month] #INDO_PEAT[month]
         #accumulate emissions    926.625433
         kali_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_nonpeat_rates[0] * scaling_factor * oc_ef[1]).updateMask(kali_mask).updateMask(peatmask))
         kali_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_nonpeat_rates[0] * scaling_factor * bc_ef[1]).updateMask(kali_mask).updateMask(peatmask))

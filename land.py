@@ -1,8 +1,8 @@
 import ee
 
 def getLandcoverData():
-    present = ee.Image('users/karenyu/marHanGfw2005_6classes')
-    BAU2010 = ee.Image('users/karenyu/future_LULC_MarHanGFW1')
+    present = ee.Image('users/karenyu/marHanS2005_sin')
+    BAU2010 = ee.Image('users/karenyu/marHanS2010_sin')
     BAU2015 = ee.Image('users/karenyu/future_LULC_MarHanGFW2')
     BAU2020 = ee.Image('users/karenyu/future_LULC_MarHanGFW3')
     BAU2025 = ee.Image('users/karenyu/future_LULC_MarHanGFW4')
