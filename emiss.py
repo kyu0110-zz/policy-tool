@@ -159,7 +159,7 @@ def getDownscaled(emissyear, metyear, peatmask):
 def getTransition(initialLandcover, finalLandcover, peatmask):
     """ Returns emissions due to land cover transitions at 1 km resolution in kg DM per grid cell"""
     # get masks for the different islands
-    islands = ee.Image('users/karenyu/boundaries_islands_1km')
+    islands = ee.Image('users/karenyu/indo_boundaries_sin')
     suma_mask = islands.eq(ee.Image(2))
     kali_mask = islands.eq(ee.Image(3))
     indo_mask = suma_mask.add(kali_mask).lt(ee.Image(1))
