@@ -3,19 +3,17 @@ import ee
 def getLandcoverData():
     present = ee.Image('users/karenyu/marHanS2005_sin')
     BAU2010 = ee.Image('users/karenyu/marHanS2010_sin')
-    BAU2015 = ee.Image('users/karenyu/future_LULC_MarHanGFW2')
-    BAU2020 = ee.Image('users/karenyu/future_LULC_MarHanGFW3')
-    BAU2025 = ee.Image('users/karenyu/future_LULC_MarHanGFW4')
-    BAU2030 = ee.Image('users/karenyu/future_LULC_MarHanGFW5')
+    BAU2015 = ee.Image('users/karenyu/future_LULC_MarHan2')
+    BAU2020 = ee.Image('users/karenyu/future_LULC_MarHan3')
+    BAU2025 = ee.Image('users/karenyu/future_LULC_MarHan4')
+    BAU2030 = ee.Image('users/karenyu/future_LULC_MarHan5')
 
     sld_ramp = '<RasterSymbolizer>' + \
           '<ColorMap type="intervals" extended="false" >' + \
                 '<ColorMapEntry color="#666666" quantity="1" label="Degraded"/>' + \
                 '<ColorMapEntry color="#000000" quantity="2" label="Intact"/>' + \
                 '<ColorMapEntry color="#fdb751" quantity="3" label="Non-Forest"/>' + \
-                '<ColorMapEntry color="#ff0000" quantity="4" label="Tree Plantation Mosaic"/>' + \
-                '<ColorMapEntry color="#800080" quantity="5" label="Old Established Plantations"/>' + \
-                '<ColorMapEntry color="#EED2EE" quantity="6" label="New Established Plantations"/>' + \
+                '<ColorMapEntry color="#ff0000" quantity="4" label="Plantation"/>' + \
             '</ColorMap>' + \
         '</RasterSymbolizer>'
 
