@@ -124,22 +124,23 @@ def getDownscaled(emissyear, metyear, peatmask):
     """Scales the transition emissions from the appropriate 5-year chunk by the IAV of the meteorological year"""
 
     # read in IAV based on metYear
-    IAV = ee.Image('users/karenyu/dm_fractional_'+str(metyear))
+    #IAV = ee.Image('users/karenyu/dm_fractional_'+str(metyear))
 
+    print(emissyear)
     # find closest year for land-use scenarios
-    if emissyear > 2025:
-        start_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW4')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW5')
-    elif emissyear > 2020:
-        start_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW3')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW4')
-    elif emissyear > 2015: 
-        start_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW2')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW3')
-    elif emissyear > 2010: 
-        start_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW1')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHanGFW2')
-    elif emissyear > 2005:
+    if emissyear >= 2025:
+        start_landcover = ee.Image('users/karenyu/future_LULC_MarHan4')
+        end_landcover = ee.Image('users/karenyu/future_LULC_MarHan5')
+    elif emissyear >= 2020:
+        start_landcover = ee.Image('users/karenyu/future_LULC_MarHan3')
+        end_landcover = ee.Image('users/karenyu/future_LULC_MarHan4')
+    elif emissyear >= 2015: 
+        start_landcover = ee.Image('users/karenyu/future_LULC_MarHan2')
+        end_landcover = ee.Image('users/karenyu/future_LULC_MarHan3')
+    elif emissyear >= 2010: 
+        start_landcover = ee.Image('users/karenyu/future_LULC_MarHan1')
+        end_landcover = ee.Image('users/karenyu/future_LULC_MarHan2')
+    elif emissyear >= 2005:
         start_landcover = ee.Image('users/karenyu/marHanS2005_sin')
         end_landcover = ee.Image('users/karenyu/marHanS2010_sin')
 

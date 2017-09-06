@@ -33,6 +33,7 @@ smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeser
     smoke.App.total_PM = JSON.parse(totalPM).toFixed(2);
     smoke.App.provincial = JSON.parse(provincial);
     smoke.App.timeseries = JSON.parse(timeseries);
+    console.info(timeseries);
     smoke.App.deaths = JSON.parse(deaths);
     console.info(deaths);
 
@@ -353,6 +354,7 @@ smoke.App.prototype.newScenario = function() {
         smoke.App.total_PM = data.totalPM.toFixed(2);
         smoke.App.provincial = JSON.parse(data.provincial);
         smoke.App.timeseries = JSON.parse(data.timeseries);
+        console.info(data.timeseries);
         smoke.App.deaths = JSON.parse(data.deaths);
 
         // Overlap new map
