@@ -145,7 +145,7 @@ def getDownscaled(emissyear, metyear, peatmask):
         end_landcover = ee.Image('users/karenyu/marHanS2010_sin')
 
     # get the transition emissions
-    transition_emissions = getTransition(start_landcover, end_landcover, peatmask, year=(emissyear-2005)%5 )
+    transition_emissions = getTransition(start_landcover, end_landcover, peatmask, year=(metyear-2005) )
 
     print(ee.Image(transition_emissions.first()).bandNames().getInfo())
 
@@ -197,29 +197,29 @@ def getTransition(initialLandcover, finalLandcover, peatmask, year):
         #accumulate emissions    926.625433
         kali_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_nonpeat_rates[0] * scaling_factor * oc_ef[1]).updateMask(kali_mask).updateMask(peatmask))
         kali_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_nonpeat_rates[0] * scaling_factor * bc_ef[1]).updateMask(kali_mask).updateMask(peatmask))
-        kali_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_peat_rates[0] * scaling_factor * oc_ef[1]).updateMask(kali_mask).updateMask(reverse_peatmask))
-        kali_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_peat_rates[0] * scaling_factor * bc_ef[1]).updateMask(kali_mask).updateMask(reverse_peatmask))
+        kali_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_peat_rates[0] * scaling_factor * oc_ef[0]).updateMask(kali_mask).updateMask(reverse_peatmask))
+        kali_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_peat_rates[0] * scaling_factor * bc_ef[0]).updateMask(kali_mask).updateMask(reverse_peatmask))
         suma_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_nonpeat_rates[0] * scaling_factor * oc_ef[1]).updateMask(suma_mask).updateMask(peatmask))
         suma_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_nonpeat_rates[0] * scaling_factor * bc_ef[1]).updateMask(suma_mask).updateMask(peatmask))
-        suma_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_peat_rates[0] * scaling_factor * oc_ef[1]).updateMask(suma_mask).updateMask(reverse_peatmask))
-        suma_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_peat_rates[0] * scaling_factor * bc_ef[1]).updateMask(suma_mask).updateMask(reverse_peatmask))
+        suma_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_peat_rates[0] * scaling_factor * oc_ef[0]).updateMask(suma_mask).updateMask(reverse_peatmask))
+        suma_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_peat_rates[0] * scaling_factor * bc_ef[0]).updateMask(suma_mask).updateMask(reverse_peatmask))
         indo_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_nonpeat_rates[0] * scaling_factor * oc_ef[1]).updateMask(indo_mask).updateMask(peatmask))
         indo_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_nonpeat_rates[0] * scaling_factor * bc_ef[1]).updateMask(indo_mask).updateMask(peatmask))
-        indo_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_peat_rates[0] * scaling_factor * oc_ef[1]).updateMask(indo_mask).updateMask(reverse_peatmask))
-        indo_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_peat_rates[0] * scaling_factor * bc_ef[1]).updateMask(indo_mask).updateMask(reverse_peatmask))
+        indo_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_peat_rates[0] * scaling_factor * oc_ef[0]).updateMask(indo_mask).updateMask(reverse_peatmask))
+        indo_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_peat_rates[0] * scaling_factor * bc_ef[0]).updateMask(indo_mask).updateMask(reverse_peatmask))
         for transition_index in range(1, 9):
             kali_nonpeat_oc = kali_nonpeat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_nonpeat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
             kali_nonpeat_bc = kali_nonpeat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_nonpeat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
-            kali_peat_oc = kali_peat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_peat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
-            kali_peat_bc = kali_peat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_peat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
+            kali_peat_oc = kali_peat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_peat_rates[transition_index] * scaling_factor * oc_ef[0])))
+            kali_peat_bc = kali_peat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_peat_rates[transition_index] * scaling_factor * bc_ef[0])))
             suma_nonpeat_oc = suma_nonpeat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_nonpeat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
             suma_nonpeat_bc = suma_nonpeat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_nonpeat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
-            suma_peat_oc = suma_peat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_peat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
-            suma_peat_bc = suma_peat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_peat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
+            suma_peat_oc = suma_peat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_peat_rates[transition_index] * scaling_factor * oc_ef[0])))
+            suma_peat_bc = suma_peat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_peat_rates[transition_index] * scaling_factor * bc_ef[0])))
             indo_nonpeat_oc = indo_nonpeat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_nonpeat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
             indo_nonpeat_bc = indo_nonpeat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_nonpeat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
-            indo_peat_oc = indo_peat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_peat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
-            indo_peat_bc = indo_peat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_peat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
+            indo_peat_oc = indo_peat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_peat_rates[transition_index] * scaling_factor * oc_ef[0])))
+            indo_peat_bc = indo_peat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_peat_rates[transition_index] * scaling_factor * bc_ef[0])))
 
         # add to collection
         oc = kali_peat_oc.unmask().add(kali_nonpeat_oc.unmask()).add(indo_peat_oc.unmask()).add(indo_nonpeat_oc.unmask()).add(suma_peat_oc.unmask()).add(suma_nonpeat_oc.unmask())
