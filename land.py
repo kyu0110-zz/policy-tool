@@ -10,10 +10,10 @@ def getLandcoverData():
 
     sld_ramp = '<RasterSymbolizer>' + \
           '<ColorMap type="intervals" extended="false" >' + \
-                '<ColorMapEntry color="#666666" quantity="1" label="Degraded"/>' + \
+                '<ColorMapEntry color="#FF0000" quantity="1" label="Degraded"/>' + \
                 '<ColorMapEntry color="#000000" quantity="2" label="Intact"/>' + \
                 '<ColorMapEntry color="#fdb751" quantity="3" label="Non-Forest"/>' + \
-                '<ColorMapEntry color="#ff0000" quantity="4" label="Plantation"/>' + \
+                '<ColorMapEntry color="#800080" quantity="4" label="Plantation"/>' + \
             '</ColorMap>' + \
         '</RasterSymbolizer>'
 
