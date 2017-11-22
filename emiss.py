@@ -1,6 +1,6 @@
 import ee
 
-def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, conservation):
+def getEmissions(scenario, startdate, enddate, metYear, logging, oilpalm, timber, peatlands, conservation):
     """Gets the dry matter emissions from GFED4 and converts to oc/bc using emission factors associated with GFED4"""
 
     print("SCENARIO", scenario)
@@ -15,13 +15,15 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
         conservationmask = getConservation()
 
     # get emissions based on transitions or from GFED 
-    print("YEAR == ", year)
+    print("startdate: {}, enddate:{}".format(startdate, enddate))
     if scenario=='GFED4':
         # gfed in kg DM
         #monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.rangeContains('system:index', 'DM_'+str(year)+'01', 'DM_'+str(year)+'12'))
-        monthly_dm = ee.ImageCollection('users/karenyu/gfed4').filterDate(str(year) + '-01-1', str(year) + '-12-31').sort('system:time_start', True)
-    else:
-        monthly_dm = getDownscaled(year, metYear, peatmask)
+        monthly_dm = ee.ImageCollection('users/karenyu/gfed4').filterDate(startdate, enddate).sort('system:time_start', True)
+    elif scenario=='Miriam':
+        monthly_dm = getDownscaled(int(startdate[0:4]), metYear, peatmask)
+    elif scenario=='GFAS':
+        monthly_dm = ee.ImageCollection('users/karenyu/GFAS_monthly').filterDate(startdate, enddate).sort('system:time_start', True)
 
     #monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filterDate('2008-01-01', '2009-01-01').sort('system:time_start', True) 
 
@@ -73,8 +75,8 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
             total_bc = total_bc.add(bc_fine)
 
         # split into GEOS-Chem hydrophobic and hydrophilic fractions
-        ocpo = total_oc.multiply(ee.Image(0.5))# * 2.1 ))  # g OA
-        ocpi = total_oc.multiply(ee.Image(0.5))# * 2.1 ))  # g OA
+        ocpo = total_oc.multiply(ee.Image(0.5 * 2.1 ))  # g OA
+        ocpi = total_oc.multiply(ee.Image(0.5 * 2.1 ))  # g OA
         bcpo = total_bc.multiply(ee.Image(0.8 ))        # g BC
         bcpi = total_bc.multiply(ee.Image(0.2 ))        # g BC
 
@@ -100,8 +102,8 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
             maskedEmissions = maskedEmissions.updateMask(conservationmask)
 
         # split into GEOS-Chem hydrophobic and hydrophilic fractions
-        ocpo = oc_bc_emissions.select('oc').multiply(ee.Image(0.5))# * 2.1 ))  # g OA
-        ocpi = oc_bc_emissions.select('oc').multiply(ee.Image(0.5))# * 2.1 ))  # g OA
+        ocpo = oc_bc_emissions.select('oc').multiply(ee.Image(0.5 * 2.1 ))  # g OA
+        ocpi = oc_bc_emissions.select('oc').multiply(ee.Image(0.5 * 2.1 ))  # g OA
         bcpo = oc_bc_emissions.select('bc').multiply(ee.Image(0.8))        # g BC
         bcpi = oc_bc_emissions.select('bc').multiply(ee.Image(0.2))        # g BC
 
@@ -112,10 +114,27 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
         return emissions_philic.addBands(emissions_phobic, ['b1']).rename(['b1', 'b2'])
 
 
+    def convert_gfas(gfas_emissions):
+        area = ee.Image('users/karenyu/GFAS_area')
+        emiss = gfas_emissions.multiply(area.multiply(3600.0*24.0*1000.0*1000.0))
+          
+        ocpo = emiss.select('b1').multiply(ee.Image(0.5 * 2.1)); # g OA
+        ocpi = emiss.select('b1').multiply(ee.Image(0.5 * 2.1)); # g OA
+        bcpo = emiss.select('b2').multiply(ee.Image(0.8 )); # g BC
+        bcpi = emiss.select('b2').multiply(ee.Image(0.2 )); # g BC
+
+        emissions_philic = ocpi.add(bcpi);  # to kg OC/BC
+        emissions_phobic = ocpo.add(bcpo);
+
+        return emissions_philic.addBands(emissions_phobic, ['b1']).rename(['b1', 'b2']);
+                                                  
+
     if scenario=='GFED4':
         emissions = monthly_dm.map(get_oc_bc)
-    else:
+    elif scenario=='Miriam':
         emissions = monthly_dm.map(convert_transition_emissions)
+    elif scenario=='GFAS':
+        emissions = monthly_dm.map(convert_gfas)
 
     return emissions
 
@@ -147,6 +166,7 @@ def getDownscaled(emissyear, metyear, peatmask):
     # get the transition emissions
     transition_emissions = getTransition(start_landcover, end_landcover, peatmask, year=(metyear-2005) )
 
+    print("tranistion emissions band names")
     print(ee.Image(transition_emissions.first()).bandNames().getInfo())
 
     # scale transition emissions based on IAV
@@ -225,7 +245,7 @@ def getTransition(initialLandcover, finalLandcover, peatmask, year):
         # add to collection
         oc = kali_peat_oc.unmask().add(kali_nonpeat_oc.unmask()).add(indo_peat_oc.unmask()).add(indo_nonpeat_oc.unmask()).add(suma_peat_oc.unmask()).add(suma_nonpeat_oc.unmask())
         bc = kali_peat_bc.unmask().add(kali_nonpeat_bc.unmask()).add(indo_peat_bc.unmask()).add(indo_nonpeat_bc.unmask()).add(suma_peat_bc.unmask()).add(suma_nonpeat_bc.unmask())
-        emissions_all_months = emissions_all_months.add(oc.addBands(bc).rename(['oc', 'bc']))
+        emissions_all_months = emissions_all_months.add(ee.Image(oc.addBands(bc).rename(['oc', 'bc'])))
 
     return ee.ImageCollection(emissions_all_months)
 

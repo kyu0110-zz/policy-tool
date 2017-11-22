@@ -31,7 +31,7 @@
       <div class="map"></div>
 
       <!-- Tab that says expand for the details panel -->
-      <div class="detailstab">Click to expand</div>
+      <div class="detailstab">Click for details</div>
           
       <!-- Chart showing the contribution from each province -->
       <div class='panel'>
@@ -43,18 +43,6 @@
           <div class="receptorTimeSeries"></div>
           <div class='sourcePie'></div>
         </div>
-      </div>
-
-      <!-- Legend -->
-      <div class="legend" id="legend">
-          <h3>Legend</h3>
-          <h4>Landcover</h4>
-          <h4>Emissions</h4>
-          <h4>Sensitivity</h4>
-          <h4>PM contribution</h4>
-          <h4>Population density</h4>
-          <h4>Baseline mortality</h4>
-          <div class="close">hide</div>
       </div>
 
       <!-- Tab that allows for designing scenarios -->
@@ -73,24 +61,9 @@
                         <select id="scenario" name="scenario">
                             <option value="GFED4">GFED4.1 with small fires</option>
                             <option value="Miriam">Downscaled GFED</option>
-                            <option value="peatprotect">Peatlands protection</option>
+                            <option value="GFAS">GFAS</option> 
                         </select>
                     </form>
-                </td>
-                </tr>
-                <tr>
-                <td>
-                    Choose receptor site
-                    <br>
-                    <form>
-                    <select id="receptor" name="receptor">
-                    <option value="Singapore">Singapore</option>
-                    <option value="Indonesia">Indonesia</option>
-                    <option value="Malaysia">Malaysia</option>
-                    </select>
-                    </form>
-
-
                 </td>
                 <td>
                 Meteorological year
@@ -111,10 +84,18 @@
               Emissions year
               <br>
               <form oninput="emissYearOutput.value = parseInt(emissYear.value);" onsubmit="return false;">
-              <input id="emissYear" name="emissYear" type="range" min="1997" max="2030" value="2006">
+              <input id="emissYear" name="emissYear" type="range" min="1997" max="2029" value="2006">
               <output for="emissYear" name="emissYearOutput">2006</output>
               </form>
                 </td>
+                <td>
+                    <div id="emiss_description" style="font-size: 10pt">
+                        <div style="font-weight: bold">Valid years:</div> 
+                        1997-2016 for GFED4 <br>
+                        2005-2029 for Downscaled GFED <br>
+                        2003-2016 for GFAS
+                    </div>
+                </td> 
             </tr>
             <tr>
                 <td colspan=2>
@@ -152,18 +133,55 @@
                       <div class="slider"></div>
                   </label>
                   Landcover<br>
-                  <input type="radio" name="landlayer" id="present" value="present" checked="true"><label for="present">Present day</label><br>
-                  Business as usual <br>
-                  <input type="radio" name="landlayer" id="BAU2010" value="BAU2010"><label for="BAU2010">2010</label>
-                  <input type="radio" name="landlayer" id="BAU2020" value="BAU2020"><label for="BAU2020">2020</label>
-                  <input type="radio" name="landlayer" id="BAU2030" value="BAU2030"><label for="BAU2030">2030</label>
-            </td>
+                  <div class="landcover" style="font-size: 10pt">
+                  <input type="radio" name="landYear" id="BAU2005" value="BAU2005"><label for="BAU2005">2005</label>
+                  <input type="radio" name="landYear" id="BAU2010" value="BAU2010" checked="true"><label for="BAU2010">2010</label><br>
+                  <input type="radio" name="landYear" id="BAU2015" value="BAU2015"><label for="BAU2015">2015</label>
+                  <input type="radio" name="landYear" id="BAU2020" value="BAU2020"><label for="BAU2020">2020</label><br>
+                  <input type="radio" name="landYear" id="BAU2025" value="BAU2025"><label for="BAU2025">2025</label>
+                  <input type="radio" name="landYear" id="BAU2030" value="BAU2030"><label for="BAU2030">2030</label>
+                  </div>
+                  </td>
+                   <td align="right" width="15" style="padding-right:0">
+                      <svg width="15" height="80">
+                            <rect width="12" height="12" y="0" style="fill:#9d9d9d" />
+                            <rect width="12" height="12" y="16.5" style="fill:#000000" />
+                            <rect width="12" height="12" y="33" style="fill:#fdb751" />
+                            <rect width="12" height="12" y="49.5" style="fill:#ff0000" />
+                      </svg>
+                  </td> 
+                  <td align="left" style="padding-left:0">
+                      <div style="font-size:10.5pt">
+                      Degraded <br>
+                      Intact <br>
+                      Non-Forest <br>
+                      Plantations</div>
+                  </td> 
             <td>
                 <label class="switch">
                       <input type="checkbox" id="emissions">
                       <div class="slider"></div>
                   </label>
             Emissions
+            </td>
+            <td align="right" width="15" style="padding-right:0">
+                <svg width="15" height="65">
+                            <rect width="11" height="11" y="1" style="fill:#FFFFFF"/>
+                            <rect width="11" height="11" y="12" style="fill:#FFFF00"/>
+                            <rect width="11" height="11" y="22" style="fill:#FFC100"/>
+                            <rect width="11" height="11" y="33" style="fill:#FF7700"/>
+                            <rect width="11" height="11" y="44" style="fill:#DE2700"/>
+                            <rect width="11" height="11" y="55" style="fill:#761200"/>
+                </svg>
+            </td>
+            <td align="left" style="padding-left:0">
+                <div style="font-size:10.5pt">
+                0 
+                <br>
+                <br>
+                <br>
+                10 ug/s/m^2
+                </div>
             </td>
             <td>
                 <label class="switch">
@@ -174,16 +192,28 @@
                 <input type="radio" name="gclayer" id="sensitivity" value="sensitivity"><label for="sensitivity">Sensitivity</label><br>
                     <input type="radio" name="gclayer" id="PM" value="PM" checked="true"><label for="PM">PM contribution</label>
             </td>
-            <td>
-                <label class="switch">
-                      <input type="checkbox" id="health">
-                      <div class="slider"></div>
-                  </label>
-              Health Impact<br>
-              <input type="radio" name="health" id="populationdensity" value="populationdensity" checked="true"><label for="populationdensity">Population Density</label><br>
-              <input type="radio" name="health" id="baselinemortality" value="baselinemortality"><label for="baselinemortality">Baseline Mortality</label><br>
+            <td align="right" width="15" style="padding-right:0">
+                <svg width="15" height="65">
+                            <rect width="11" height="11" y="1" style="fill:#FFFFFF"/>
+                            <rect width="11" height="11" y="12" style="fill:#fF9Cff"/>
+                            <rect width="11" height="11" y="22" style="fill:#FF00b4"/>
+                            <rect width="11" height="11" y="33" style="fill:#CC00ff"/>
+                            <rect width="11" height="11" y="44" style="fill:#5F00e5"/>
+                            <rect width="11" height="11" y="55" style="fill:#0003ae"/>
+                </svg>
             </td>
-          </tr>
+            <td align="left" style="padding-left:0">
+                <div style="font-size:10.5pt">
+                0
+                <br>
+                <br>
+                <br>
+                <div class="GClegend">
+                0.05 ug/m^3 
+                </div>
+                </div>
+            </td>
+            </tr>
         </table>
       </div>
     </div>
@@ -195,7 +225,7 @@
           '{{ totalPM | safe}}',
           '{{ provincial | safe}}',
           '{{ timeseries | safe}}',
-          '{{ deaths | safe}}');
+          '{{ scenario | safe}}');
     </script>
 
   </body>
