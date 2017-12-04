@@ -94,6 +94,37 @@ body,
   overflow: hidden;
 }
 
+.trendy .abouttab {
+  position: absolute;
+  z-index: 8;
+  background-color: rgba(252, 255, 255, 0.90);
+  font-family: 'Roboto', sans-serif;
+  text-align: left  
+}
+
+.trendy .aboutshow {
+  position: absolute;
+  font-family: 'Roboto', sans-serif;
+  left: 280px;
+  bottom: 0px;
+  text-align: right;
+  font-weight: bold;
+  cursor: pointer
+}
+
+.trendy .abouttab h1 {
+  font-weight: bold;
+  font-size: 14pt;
+  margin: 0px;
+  padding: 3px;
+  padding-top: 6px;
+}
+
+.trendy .abouttab .citation {
+    margin-top: 10px;
+    font-size: 8pt;
+}
+
 .trendy .detailstab {
   position: absolute;
   z-index: 10;
@@ -161,9 +192,9 @@ body,
 
 @media (min-width: 900px) {
   .trendy h1 {
-    font-size: 36px;
+    font-size: 30px;
     padding-left: 20px;
-    padding-right: 40px;
+    padding-right: 18px;
   }
 
   .trendy .layerUI {
@@ -174,7 +205,25 @@ body,
     padding-left: 10px;
     padding-right: 10px;
 }
-  
+ 
+ .trendy .abouttab {
+    width: 60%;
+    left: 20%;
+    top: 25%;
+    font-size: 14px;
+    padding: 10px;
+    margin: 0px;
+    overflow: hidden;
+    display: none;
+  } 
+
+  .trendy .aboutclose {
+    cursor: pointer;
+    position: absolute;
+    right: 10px;
+    font-weight: bold;
+  } 
+
   .trendy .detailstab {
     width: 100px;
     height: 50px;

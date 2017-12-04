@@ -92,6 +92,10 @@ smoke.App = function(mapType, boundaries) {
   $('.scenariotab').click(this.handleScenarioExpand.bind(this));
   $('.scenarioUI .close').click(this.hideScenario.bind(this));
 
+  // Add close button for about tab
+  $('.aboutclose').click(this.hideAbout.bind(this));
+  $('.aboutshow').click(this.showAbout.bind(this));
+
   // Changes receptor or year based on UI
   $('#get').click(this.newScenario.bind(this));
 
@@ -368,6 +372,13 @@ smoke.App.prototype.hideScenario = function(event) {
     $('.scenariotab').show();
 }
 
+smoke.App.prototype.showAbout = function(event) {
+    $('.abouttab').show();
+}
+
+smoke.App.prototype.hideAbout = function(event) {
+    $('.abouttab').hide();
+}
 /** 
  * Adds a chart to map showing total PM at receptor site
  * and contribution from various regions.

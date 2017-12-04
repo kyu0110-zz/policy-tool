@@ -45,6 +45,40 @@
         </div>
       </div>
 
+      <div class="abouttab">
+          <div class="aboutclose" align="left">[close]</div>
+          <h1>Overview. </h1>
+      This tool enables users to calculate the effects of smoke emissions in Equatorial Asia on haze
+      Singapore. It was developed at Harvard University, using the GEOS-Chem chemical transport
+      model, following Kim et al. (2015) and Koplitz et al. (2016). The tool shows where burning took
+      place since 1997, and predicts where burning will occur under a Business-as- Usual (BAU)
+      scenario in the future. The tool further reveals the impact that this burning has on fine particulate
+      matter (PM) in Singapore. PM is a major component of haze.
+      <h1>Details. </h1> 
+      Users can select a particular year in the past or future and apply one of five patterns of transport
+      that carry the smoke from the fire sources to the receptor Singapore. The patterns come from
+      2005-2009 meteorology. For the historical time period, two fire emission inventories can be
+      applied: the Global Fire Emissions Database version 4 with small fires (GFED4, 1997-2016) and
+      the Global Fire Assimilation System (GFAS, 2003-2016). For the future time period, the BAU
+      scenario serves as default, with less extreme scenarios also possible. For example, users can
+      choose a scenario from which emissions from peatlands are excluded.
+      Given specific years for emissions and transport, the tool presents the timeseries of monthly
+      mean haze PM in Singapore in the panel at left. The panel also shows a pie chart that quantifies
+      the contribution of each Indonesian province to that year’s haze in Singapore. With the GEOS-
+      Chem switch, users can create maps showing the sensitivity of Singapore PM to fire emissions in
+      gridcells across the region, as well as maps of the PM contributions from each gridcell to the
+      Singapore total PM. The landcover switch displays land types for that year, and the emissions
+      switch shows which areas burned.
+      <div class="citation">
+      Kim, P. S., Jacob, D. J., Mickley, L. J., Koplitz, S. N., Marlier, M. E., DeFries, R. S., et al.
+      (2015). Sensitivity of population smoke exposure to fire locations in Equatorial Asia.
+      <i>Atmospheric Environment</i>, 102(C), 11–17. <br>
+      Koplitz, S. N., Mickley, L. J., Marlier, M. E., Buonocore, J. J., Kim, P. S., Liu, T., et al. (2016).
+      Public health impacts of the severe haze in Equatorial Asia in September–October 2015:
+      demonstration of a new framework for informing fire management strategies to reduce
+      downwind smoke exposure. <i>Environmental Research Letters</i>, 11(9), 094023–11.</div>
+      </div>
+
       <!-- Tab that allows for designing scenarios -->
       <div class="scenariotab">Design scenario</div>
 
@@ -120,7 +154,8 @@
           <tr>
             <td rowspan="2">
             <!-- The title of the application. -->
-            <h1>SMOKE Policy Tool</h1>
+            <h1>PM exposure in Singapore</h1>
+            <div style="font-size: 13pt; padding-left: 20px; position: absolute; bottom: 10px">With support from <img src="static/Swiss_Re.png" width="100"><div class="aboutshow">[about]</div></div>
             </td>
             <td colspan="4">
                 <b>Map Layers:</b>
