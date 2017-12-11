@@ -39,22 +39,12 @@
         <div class="close">hide</div>
         <br>
         <div class="subtitle"></div>
+        <div class="subtitle2"></div>
         <div class="details">
           <div class="receptorTimeSeries"></div>
           <div class='sourcePie'></div>
+          <div class="healthecon"></div>
         </div>
-      </div>
-
-      <!-- Legend -->
-      <div class="legend" id="legend">
-          <h3>Legend</h3>
-          <h4>Landcover</h4>
-          <h4>Emissions</h4>
-          <h4>Sensitivity</h4>
-          <h4>PM contribution</h4>
-          <h4>Population density</h4>
-          <h4>Baseline mortality</h4>
-          <div class="close">hide</div>
       </div>
 
       <!-- Tab that allows for designing scenarios -->
@@ -73,7 +63,6 @@
                         <select id="scenario" name="scenario">
                             <option value="GFED4">GFED4.1 with small fires</option>
                             <option value="Miriam">Downscaled GFED</option>
-                            <option value="peatprotect">Peatlands protection</option>
                         </select>
                     </form>
                 </td>
@@ -139,50 +128,134 @@
           <tr>
             <td rowspan="2">
             <!-- The title of the application. -->
-            <h1>SMOKE Policy Tool</h1>
+            <h1>SMOKE<br><small>Policy Tool</small></h1>
             </td>
             <td colspan="4">
                 <b>Map Layers:</b>
             </td>
           </tr>
           <tr valign="top">
-              <td>
+              <td width="150px">
                   <label class="switch">
                       <input type="checkbox" id="landcover">
                       <div class="slider"></div>
-                  </label>
-                  Landcover<br>
+                  </label><br>
+                  Landcover
+                  <div class="landcover" style="font-size: 10pt">
                   <input type="radio" name="landlayer" id="present" value="present" checked="true"><label for="present">Present day</label><br>
                   Business as usual <br>
                   <input type="radio" name="landlayer" id="BAU2010" value="BAU2010"><label for="BAU2010">2010</label>
                   <input type="radio" name="landlayer" id="BAU2020" value="BAU2020"><label for="BAU2020">2020</label>
                   <input type="radio" name="landlayer" id="BAU2030" value="BAU2030"><label for="BAU2030">2030</label>
-            </td>
+                  </div>
+              </td>
+            <td align="right" width="10" style="padding-right:0">
+                <svg width="15" height="80">
+               <rect width="12" height="12" y="0" style="fill:#9d9d9d" />
+          <rect width="12" height="12" y="16.5" style="fill:#000000" />
+                <rect width="12" height="12" y="33" style="fill:#fdb751" />
+          <rect width="12" height="12" y="49.5" style="fill:#ff0000" />
+          </svg>
+      </td> 
+             <td align="left" style="padding-left:0">
+      <div style="font-size:10pt; line-space:10.5pt">
+         Degraded <br>
+         Intact <br>
+         Non-Forest <br>
+         Plantations</div>
+ </td> 
             <td>
                 <label class="switch">
                       <input type="checkbox" id="emissions">
                       <div class="slider"></div>
-                  </label>
+                </label><br>
             Emissions
             </td>
-            <td>
+            <td align="right" width="10" style="padding-right:0">
+                    <svg width="15" height="65">
+                      <rect width="11" height="11" y="1" style="fill:#FFFFFF"/>
+                       <rect width="11" height="11" y="12" style="fill:#FFFF00"/>
+                   <rect width="11" height="11" y="22" style="fill:#FFC100"/>
+                   <rect width="11" height="11" y="33" style="fill:#FF7700"/>
+                   <rect width="11" height="11" y="44" style="fill:#DE2700"/>
+                   <rect width="11" height="11" y="55" style="fill:#761200"/>
+                   </svg>
+                   </td>
+
+   <td align="left" style="padding-left:0">
+  <div style="font-size:10.5pt">
+             0 
+                            <br>
+                <br>
+         <br>
+              10 ug/s/m^2
+           </div>
+     </td>
+            <td style="padding-right:0, padding-left:0">
                 <label class="switch">
                     <input type="checkbox" id="geoschem" checked="true">
                     <div class="slider"></div>
-                </label>
-                GEOS-Chem<br>
+                </label><br>
+                GEOS-Chem
+                <div class="gcsub" style="font-size: 10pt">
                 <input type="radio" name="gclayer" id="sensitivity" value="sensitivity"><label for="sensitivity">Sensitivity</label><br>
                     <input type="radio" name="gclayer" id="PM" value="PM" checked="true"><label for="PM">PM contribution</label>
+                </div>
             </td>
+            <td align="right" width="10" style="padding-right:0; padding-left:0">
+          <svg width="15" height="65">
+                    <rect width="11" height="11" y="1" style="fill:#FFFFFF"/>
+                          <rect width="11" height="11" y="12" style="fill:#fF9Cff"/>
+                     <rect width="11" height="11" y="22" style="fill:#FF00b4"/>
+     <rect width="11" height="11" y="33" style="fill:#CC00ff"/>
+          <rect width="11" height="11" y="44" style="fill:#5F00e5"/>
+              <rect width="11" height="11" y="55" style="fill:#0003ae"/>
+                     </svg>
+           </td>
+           <td align="left" style="padding-left:0; padding-right:0">
+         <div style="font-size:9.5pt; line-height:0.99">
+                  0
+            <br>
+                 <br>
+                 <br><br>
+                <div class="GClegend">
+             0.05 ug/m^3 
+
+                       </div>
+                        </td>
             <td>
                 <label class="switch">
                       <input type="checkbox" id="health">
                       <div class="slider"></div>
-                  </label>
-              Health Impact<br>
+                </label><br>
+              Health Impact
+              <div class="healthsub" style="font-size:10pt">
               <input type="radio" name="health" id="populationdensity" value="populationdensity" checked="true"><label for="populationdensity">Population Density</label><br>
-              <input type="radio" name="health" id="baselinemortality" value="baselinemortality"><label for="baselinemortality">Baseline Mortality</label><br>
+              <input type="radio" name="health" id="baselinemortality" value="baselinemortality"><label for="baselinemortality">Baseline Mortality</label>
+              </div>
             </td>
+            <td align="right" width="10" style="padding-right:0; padding-left:0">
+<svg width="15" height="65">
+                <rect width="11" height="11" y="1" style="fill:#FFFFFF"/>
+                <rect width="11" height="11" y="12" style="fill:#a5ffd8"/>
+                <rect width="11" height="11" y="22" style="fill:#3cff00"/>
+                <rect width="11" height="11" y="33" style="fill:#30ce00"/>
+                <rect width="11" height="11" y="44" style="fill:#218b00"/>
+                <rect width="11" height="11" y="55" style="fill:#124000"/>
+            </svg>
+
+            </td>
+            <td align="left" style="padding-left:0">
+                                <div style="font-size:10.5pt">
+     0
+   <br>
+  <br>
+      <br>
+      <div class="GClegend">
+     
+  </div>
+</div>
+                                                                                                                                                                                    </td>
           </tr>
         </table>
       </div>
@@ -195,7 +268,11 @@
           '{{ totalPM | safe}}',
           '{{ provincial | safe}}',
           '{{ timeseries | safe}}',
-          '{{ deaths | safe}}');
+          '{{ endeaths | safe}}',
+          '{{ lndeaths | safe}}',
+          '{{ pndeaths | safe}}',
+          '{{ a14deaths | safe}}',
+          '{{ adultdeaths | safe}}');
     </script>
 
   </body>

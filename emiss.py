@@ -46,8 +46,6 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
             maskedEmissions = maskedEmissions.updateMask(conservationmask)
 
         land_types = ['PET', 'DEF', 'AGRI', 'SAV', 'TEMP', 'PLT']
-        #oc_ef = [2.157739E+23, 2.157739E+23, 2.082954E+23, 1.612156E+23, 1.885199E+23, 1.885199E+23]
-        #bc_ef = [2.835829E+22, 2.835829E+22, 2.113069E+22, 2.313836E+22, 2.574832E+22, 2.574832E+22]
 
         #bands = ['b5', 'b4', 'b6', 'b1', 'b3', 'b2']
         bands = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6']
@@ -73,8 +71,8 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
             total_bc = total_bc.add(bc_fine)
 
         # split into GEOS-Chem hydrophobic and hydrophilic fractions
-        ocpo = total_oc.multiply(ee.Image(0.5))# * 2.1 ))  # g OA
-        ocpi = total_oc.multiply(ee.Image(0.5))# * 2.1 ))  # g OA
+        ocpo = total_oc.multiply(ee.Image(0.5 * 2.1 ))  # g OA
+        ocpi = total_oc.multiply(ee.Image(0.5 * 2.1 ))  # g OA
         bcpo = total_bc.multiply(ee.Image(0.8 ))        # g BC
         bcpi = total_bc.multiply(ee.Image(0.2 ))        # g BC
 
@@ -100,8 +98,8 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
             maskedEmissions = maskedEmissions.updateMask(conservationmask)
 
         # split into GEOS-Chem hydrophobic and hydrophilic fractions
-        ocpo = oc_bc_emissions.select('oc').multiply(ee.Image(0.5))# * 2.1 ))  # g OA
-        ocpi = oc_bc_emissions.select('oc').multiply(ee.Image(0.5))# * 2.1 ))  # g OA
+        ocpo = oc_bc_emissions.select('oc').multiply(ee.Image(0.5 * 2.1 ))  # g OA
+        ocpi = oc_bc_emissions.select('oc').multiply(ee.Image(0.5 * 2.1 ))  # g OA
         bcpo = oc_bc_emissions.select('bc').multiply(ee.Image(0.8))        # g BC
         bcpi = oc_bc_emissions.select('bc').multiply(ee.Image(0.2))        # g BC
 

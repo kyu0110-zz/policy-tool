@@ -15,7 +15,7 @@ smoke = {};  // Our namespace.
  * @param {string} serializedPolygonIds A serialized array of the IDs of the
  *     polygons to show on the map. For example: "['poland', 'moldova']".
  */
-smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeseries, deaths) {
+smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeseries, endeaths, lndeaths, pndeaths, a14deaths, adultdeaths) {
   // Load external libraries.
   google.load('visualization', '1.0');
   google.load('jquery', '1');
@@ -24,7 +24,7 @@ smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeser
       callback: function(){}
   });
 
-  // Create the Trendy Lights app.
+  // Create the app.
   google.setOnLoadCallback(function() {
     var mapType = smoke.App.getEeMapType(JSON.parse(eeMapId)[2][1], JSON.parse(eeToken)[2][1]);
     var app = new smoke.App(mapType, JSON.parse(boundaries));
@@ -34,8 +34,12 @@ smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeser
     smoke.App.provincial = JSON.parse(provincial);
     smoke.App.timeseries = JSON.parse(timeseries);
     console.info(timeseries);
-    smoke.App.deaths = JSON.parse(deaths);
-    console.info(deaths);
+    smoke.App.endeaths = JSON.parse(endeaths);
+    smoke.App.lndeaths = JSON.parse(lndeaths);
+    smoke.App.pndeaths = JSON.parse(pndeaths);
+    smoke.App.a14deaths = JSON.parse(a14deaths);
+    smoke.App.adultdeaths = JSON.parse(adultdeaths);
+    console.info(endeaths);
 
     // save the map layers
     smoke.App.mapids = JSON.parse(eeMapId);
@@ -62,14 +66,17 @@ smoke.App = function(mapType, boundaries) {
   // Draw boundaries
   this.addBoundaries(boundaries);
 
-  // Add legend
-  this.addLegend();
-
   // Register a click handler to show a panel when user clicks a source region
-  $('#peatlands').mouseover(this.handlePolygonHover.bind(this));
+  $('#peatlands').mouseover(this.handlePeatlandHover.bind(this));
   $('#peatlands').mouseout(this.handlePolygonOut.bind(this));
-  //this.map.data.addListener('mouseover', this.handlePolygonHover.bind(this));
-  //this.map.data.addListener('mouseout', this.handlePolygonOut.bind(this));
+  $('#logging').mouseover(this.handleLoggingHover.bind(this));
+  $('#logging').mouseout(this.handlePolygonOut.bind(this));
+  $('#oilpalm').mouseover(this.handleOilpalmHover.bind(this));
+  $('#oilpalm').mouseout(this.handlePolygonOut.bind(this));
+  $('#timber').mouseover(this.handleTimberHover.bind(this));
+  $('#timber').mouseout(this.handlePolygonOut.bind(this));
+  $('#conservation').mouseover(this.handleConservationHover.bind(this));
+  $('#conservation').mouseout(this.handlePolygonOut.bind(this));
 
   // Draw hidden details panel
   $('.detailstab').click(this.handlePanelExpand.bind(this));
@@ -102,17 +109,14 @@ smoke.App = function(mapType, boundaries) {
   // layer UI: GEOS-Chem toggle
   $('#geoschem').click(this.handleLayerClick.bind(this, "GEOSCHEM"));
   $('#sensitivity').click(this.handleLayerSwitchClick.bind(this, "GEOSCHEM"));
+  $('#sensitivity').click(this.handleLegendSwitch.bind(this, "sensitivity"));
   $('#PM').click(this.handleLayerSwitchClick.bind(this, "GEOSCHEM"));
+  $('#PM').click(this.handleLegendSwitch.bind(this, "PM"));
 
   // layer UI: health impacts density toggle
   $('#health').click(this.handleLayerClick.bind(this, "HEALTH"));
   $('#populationdensity').click(this.handleLayerSwitchClick.bind(this, "HEALTH"));
   $('#baselinemortality').click(this.handleLayerSwitchClick.bind(this, "HEALTH"));
-
-  // Register a click handler 
-  //var controlUI = 
-  // add menu to the map
-  //this.addUI(this.map);
 
 };
 
@@ -132,7 +136,7 @@ smoke.App.prototype.createMap = function(mapType) {
   var map = new google.maps.Map(mapEl, mapOptions);
 
   map.setOptions({styles: smoke.App.BLACK_BASE_MAP_STYLES});
-  mapType.setOpacity(0.4);
+  mapType.setOpacity(0.6);
   map.overlayMapTypes.push(mapType);
   return map;
 };
@@ -143,7 +147,6 @@ smoke.App.prototype.createMap = function(mapType) {
  */
 smoke.App.prototype.addBoundaries = function(regions) {
   regions.forEach((function(region) {
-    //this.map.data.addGeoJson(region);
     this.map.data.loadGeoJson('static/regions/' + region + '.json');
   }).bind(this));
   this.map.data.setStyle(function(feature) {
@@ -157,28 +160,104 @@ smoke.App.prototype.addBoundaries = function(regions) {
   });
 };
 
-
-/** 
- * Handles a click on a source region. 
- */
-smoke.App.prototype.handlePolygonHover = function(event) {
-    //var feature = event.feature;
-    //var feature = this.map.data.getFeatureById();
-
+smoke.App.prototype.handlePeatlandHover = function(event) {
     this.map.data.setStyle(function(feature) {
-      return {
-          'strokeWeight': 2,
-          'fillOpacity': 0.3,
-          'fillColor': 'red',
-          'strokeColor': 'red',
-          'strokeOpacity': 0.6
-      };
-  });
+        var regionid = feature.getProperty('objectid_1');
+        if (regionid == 'peatland') {
+            fillopacity = 0.3;
+            opacity = 0.6;
+        } else {
+            fillopacity = 0.0;             
+            opacity = 0.0;
+        };
+     return {
+         'strokeWeight': 2,
+         'fillOpacity': fillopacity,
+         'fillColor': 'red',
+         'strokeColor': 'red',
+         'strokeOpacity': opacity
+     };
+ });
+};
 
-    // Highlight region
-//    this.map.data.overrideStyle(feature, {
-//        strokeOpacity: 0.6
-//    });
+smoke.App.prototype.handleLoggingHover = function(event) {
+    this.map.data.setStyle(function(feature) {
+        var regionid = feature.getProperty('objectid_1');
+        if (regionid == 'logging') {
+            fillopacity = 0.3;
+            opacity = 0.6;
+        } else {
+            fillopacity = 0.0;             
+            opacity = 0.0;
+        };
+     return {
+         'strokeWeight': 2,
+         'fillOpacity': fillopacity,
+         'fillColor': 'red',
+         'strokeColor': 'red',
+         'strokeOpacity': opacity
+     };
+ });
+};
+
+smoke.App.prototype.handleOilpalmHover = function(event) {
+    this.map.data.setStyle(function(feature) {
+        var regionid = feature.getProperty('objectid_1');
+        if (regionid == 'oilpalm') {
+            fillopacity = 0.3;
+            opacity = 0.6;
+        } else {
+            fillopacity = 0.0;             
+            opacity = 0.0;
+        };
+     return {
+         'strokeWeight': 2,
+         'fillOpacity': fillopacity,
+         'fillColor': 'red',
+         'strokeColor': 'red',
+         'strokeOpacity': opacity
+     };
+ });
+};
+
+smoke.App.prototype.handleConservationHover = function(event) {
+    this.map.data.setStyle(function(feature) {
+        var regionid = feature.getProperty('objectid_1');
+        if (regionid == 'conservation') {
+            fillopacity = 0.3;
+            opacity = 0.6;
+        } else {
+            fillopacity = 0.0;             
+            opacity = 0.0;
+        };
+     return {
+         'strokeWeight': 2,
+         'fillOpacity': fillopacity,
+         'fillColor': 'red',
+         'strokeColor': 'red',
+         'strokeOpacity': opacity
+     };
+ });
+};
+
+smoke.App.prototype.handleTimberHover = function(event) {
+    this.map.data.setStyle(function(feature) {
+        var regionid = feature.getProperty('objectid_1');
+        if (regionid == 'timber') {
+            fillopacity = 0.3;
+            opacity = 0.6;
+        } else {
+            fillopacity = 0.0;             
+            opacity = 0.0;
+        };
+     return {
+         'strokeWeight': 2,
+         'fillOpacity': fillopacity,
+         'fillColor': 'red',
+         'strokeColor': 'red',
+         'strokeOpacity': opacity
+     };
+ });
 };
 
 /** 
@@ -194,8 +273,6 @@ smoke.App.prototype.handlePolygonOut = function(event) {
           'strokeOpacity': 0.0
       };
     });
-
-    //this.map.data.revertStyle();
 };
 
 /**
@@ -212,12 +289,6 @@ smoke.App.prototype.handlePolygonClick = function(event) {
 
     $('.panel').show();
     this.drawChart();
-    //var title = feature.getProperty('title');
-    //$('.panel').show();
-    //$('.panel .title').show().text(title);
-
-    // Load and show details about region
-    //var id = feature.getPRoperty('id');
 
 };
 
@@ -227,10 +298,14 @@ smoke.App.prototype.handlePolygonClick = function(event) {
 smoke.App.prototype.handlePanelExpand = function(event) {
     $('.detailstab').hide();
     $('.panel').show();
-    $('.panel .title').show().text('Total PM = ' + smoke.App.total_PM + ' ug/m^3');
-    $('.panel .subtitle').show().text('Attributable deaths: ' + smoke.App.deaths[0].toFixed(0) + ' - ' + smoke.App.deaths[2].toFixed(0));
+    $('.panel .title').show().text('Sept + Oct mean PM: ' + smoke.App.total_PM + ' ug/m^3');
+    var lower = smoke.App.endeaths[0] + smoke.App.lndeaths[0] + smoke.App.pndeaths[0] + smoke.App.a14deaths[0] + smoke.App.adultdeaths[0];
+    var upper = smoke.App.endeaths[2] + smoke.App.lndeaths[2] + smoke.App.pndeaths[2] + smoke.App.a14deaths[2] + smoke.App.adultdeaths[2];
+    $('.panel .subtitle').show().text('Attributable deaths: ' + lower.toFixed(0) + ' - ' + upper.toFixed(0));
+    $('.panel .subtitle2').show().text('Economic impact: ' + (lower*1.7).toFixed(0) + ' - ' + (upper*1.7).toFixed(0) + ' million USD');
     this.drawTimeSeries();
     this.drawSourcePie();
+    this.drawHealthChart();
 }
 
 /** 
@@ -248,6 +323,39 @@ smoke.App.prototype.hideScenario = function(event) {
     $('.scenarioUI').hide();
     $('.scenariotab').show();
 }
+
+/** 
+ * Adds a chart to map showing total PM at receptor site
+ * and contribution from various regions.
+ */
+smoke.App.prototype.drawHealthChart = function() {
+  // Add chart that shows contribution from each region
+    console.info(smoke.App.provincial)
+        var healthdata = google.visualization.arrayToDataTable([
+              ['Age group', 'Age 0-1', 'Age 1-4', 'Age 5+', { role: 'annotation' } ],
+              ['Business as usual', smoke.App.endeaths[1]+smoke.App.lndeaths[1]+smoke.App.pndeaths[1], smoke.App.a14deaths[1], smoke.App.adultdeaths[1], ''],
+              ['Current scenario', smoke.App.endeaths[1]+smoke.App.lndeaths[1]+smoke.App.pndeaths[1], smoke.App.a14deaths[1], smoke.App.adultdeaths[1], '']
+        ]);
+
+        var options = {
+            legend: { position: 'right', maxLines: 5},
+            height: '150px',
+           bar: { groupWidth: '75%' },
+           isStacked: true,
+           chartArea: {width: '60%'},
+           title: 'Attributable Mortality'
+       };
+
+    var wrapper = new google.visualization.ChartWrapper({
+      chartType: 'BarChart',
+      dataTable: healthdata,
+      options: options
+    });
+
+  var chartEl = $('.healthecon').get(0);
+    wrapper.setContainerId(chartEl);
+    wrapper.draw();
+};
 
 /** 
  * Adds a chart to map showing total PM at receptor site
@@ -355,7 +463,11 @@ smoke.App.prototype.newScenario = function() {
         smoke.App.provincial = JSON.parse(data.provincial);
         smoke.App.timeseries = JSON.parse(data.timeseries);
         console.info(data.timeseries);
-        smoke.App.deaths = JSON.parse(data.deaths);
+        smoke.App.endeaths = JSON.parse(data.endeaths);
+        smoke.App.lndeaths = JSON.parse(data.lndeaths);
+        smoke.App.pndeaths = JSON.parse(data.pndeaths);
+        smoke.App.a14deaths = JSON.parse(data.a14deaths);
+        smoke.App.adultdeaths = JSON.parse(data.adultdeaths);
 
         // Overlap new map
         mapType.setOpacity(0.4);
@@ -407,7 +519,7 @@ smoke.App.prototype.addLayer = function(layername) {
     } else if (layername == "EMISSIONS") {
         layer_index = 1;
         id_index = 0;
-        var opacity = 0.4;
+        var opacity = 0.6;
     } else if (layername == "GEOSCHEM") {
         layer_index = 2;
         if ($('#sensitivity').is(':checked')) {
@@ -415,7 +527,7 @@ smoke.App.prototype.addLayer = function(layername) {
         } else {
             id_index = 1;
         }
-        var opacity = 0.4;
+        var opacity = 0.6;
     } else if (layername == "HEALTH") {
         layer_index = 3;
         if ($('#populationdensity').is(':checked')) {
@@ -423,7 +535,7 @@ smoke.App.prototype.addLayer = function(layername) {
         } else {
             id_index = 1;
         }
-        var opacity = 0.4;
+        var opacity = 0.6;
     };
 
     var mapType = smoke.App.getEeMapType(smoke.App.mapids[layer_index][id_index], smoke.App.tokens[layer_index][id_index]);
@@ -451,6 +563,18 @@ smoke.App.prototype.handleLayerSwitchClick = function(layername) {
         smoke.App.layers.push(layername);
     };
 
+};
+
+smoke.App.prototype.handleLegendSwitch = function(layername) {
+    console.info(layername);
+    if (layername=='sensitivity') {
+       max = 0.01
+       unit = '(ug/m^3)  / (g emiss.)';
+    } else {
+       max = 0.05
+       unit = 'ug/m^3';
+    };
+    $('.GClegend').show().text(max + ' ' + unit);
 };
 
 smoke.App.prototype.addLegend = function() {
@@ -572,7 +696,11 @@ smoke.App.DEFAULT_CENTER = {lng: 110.82, lat: 3.35};
 smoke.App.total_PM = 0.0;
 smoke.App.provincial;
 smoke.App.timeseries = 0.0;
-smoke.App.deaths;
+smoke.App.endeaths;
+smoke.App.lndeaths;
+smoke.App.pndeaths;
+smoke.App.a14deaths;
+smoke.App.adultdeaths;
 smoke.App.mapids;
 smoke.App.tokens;
 smoke.App.layers = ["GEOSCHEM"];

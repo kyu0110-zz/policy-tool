@@ -46,7 +46,11 @@ class MainHandler(webapp2.RequestHandler):
         'totalPM' : totalPM['b1'],
         'provincial': json.dumps(provtotal),
         'timeseries': json.dumps(exposure),
-        'deaths': json.dumps(mort)
+        'endeaths': json.dumps(mort[0]),
+        'lndeaths': json.dumps(mort[1]),
+        'pndeaths': json.dumps(mort[2]),
+        'a14deaths': json.dumps(mort[3]),
+        'adultdeaths': json.dumps(mort[4])
     }
     template = JINJA2_ENVIRONMENT.get_template('index.html')
     self.response.out.write(template.render(template_values))
@@ -146,7 +150,11 @@ class DetailsHandler(webapp2.RequestHandler):
             'totalPM': totalPM['b1'],
             'provincial': json.dumps(provtotal),
             'timeseries': json.dumps(exposure),
-            'deaths': json.dumps(mort)
+            'endeaths': json.dumps(mort[0]),
+            'lndeaths': json.dumps(mort[1]),
+            'pndeaths': json.dumps(mort[2]),
+            'a14deaths': json.dumps(mort[3]),
+            'adultdeaths': json.dumps(mort[4])
         }
         self.response.out.write(json.dumps(template_values))
         #self.response.headers['Content-Type'] = 'application/json'
@@ -193,16 +201,16 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
         scale = 1e9 * 2.592e-6 / (926.0 * 926)
 
     print(ee.Image(emissions.first()).bandNames().getInfo())
-    emissions_display = emissions.mean().select('b1').add(emissions.mean().select('b2')).multiply(scale)
-    mapid = GetMapId(emissions_display, maxVal=2e0, maskValue=1e-6, color='FFFFFF, AA0000')
+    emissions_display = ee.Image(ee.ImageCollection(emissions.toList(1, 8)).first()).add(ee.Image(ee.ImageCollection(emissions.toList(1,9)).first())) 
+    mapid = GetMapId(emissions_display.select('b1').add(emissions_display.select('b2')).multiply(scale), maxVal=10e0, maskValue=1e-6, color='FFFFFF, FFFF00, FFC100, FF7700, DE2700, 761200')
 
     mapIds.append([mapid['mapid']])
     tokens.append([mapid['token']])
 
     # third layer is sensitivities and pm
     sensitivities = getSensitivity(receptor, metYear)
-    meansens = sensitivities.filterDate(str(metYear)+'-07-01', str(metYear)+'-11-30').mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
-    mapid = GetMapId(meansens.select('b1'), maxVal=0.01, maskValue=0.0001, color='FFFFFF, 0000FF, 00FF00, FFFA00, FF0000')
+    meansens = sensitivities.filterDate(str(metYear)+'-09-01', str(metYear)+'-11-01').mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
+    mapid = GetMapId(meansens.select('b1').add(meansens.select('b2')).multiply(SCALE_FACTOR*1e3), maxVal=0.10, maskValue=0.001, color='FFFFFF, FE9CFF, FF00B4, CC00FF, 5F00E5, 0003AE')
     mapIds.append([mapid['mapid']])
     tokens.append([mapid['token']])
     
@@ -212,17 +220,19 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
     # get pm exposure for every image
     exposure = getExposureTimeSeries(pm)
 
-    # we only want map for Jul - Nov
-    summer_pm = pm.filterDate(str(metYear)+'-07-01', str(metYear)+'-11-30')
+    # we only want map for Sept + Oct
+    summer_pm = pm.filterDate(str(metYear)+'-09-01', str(metYear)+'-11-01')
 
     totPM = summer_pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
-    mapid = GetMapId(totPM, maxVal=1e-2)
+    annualPM = pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
+    mapid = GetMapId(totPM, maxVal=0.05, color='FFFFFF, FE9CFF, FF00B4, CC00FF, 5F00E5, 0003AE')
     mapIds[2].append(mapid['mapid'])
     tokens[2].append(mapid['token'])
     
     ## Compute the total Jun - Nov mean exposure at receptor
     proj = ee.Image(pm.first()).select('b1').projection()
     totalPM = computeTotal(totPM, proj)
+    annual_PM = computeTotal(annualPM, proj)
 
     # get provincial totals
     prov = getProvinceBoundaries()
@@ -230,17 +240,22 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
 
     # fourth layer is health impacts
     pop_img = getPopulationDensity('2010')
-    mapid = GetMapId(pop_img, maxVal=500, color='FFFFFF, 600020')
+    mapid = GetMapId(pop_img, maxVal=1000, color='FFFFFF, a5ffd8, 3cff00, 30ce00, 218b00, 124000')
     mapIds.append([mapid['mapid']])
     tokens.append([mapid['token']])
 
     baseline_mortality = getBaselineMortality()
-    mapid = GetMapId(baseline_mortality, maxVal=5, color='FFFFFF, 600020')
+    mapid = GetMapId(baseline_mortality, maxVal=5, color='FFFFFF, a5ffd8, 3cff00, 30ce00, 218b00, 124000')
     mapIds[3].append(mapid['mapid'])
     tokens[3].append(mapid['token'])
 
-    attributable_mortality = health.getAttributableMortality(baseline_mortality, receptor, totalPM['b1'])
+    earlyneonatal_mortality = health.getAttributableMortality(receptor, annual_PM['b1'], 'earlyneonatal')
+    lateneonatal_mortality = health.getAttributableMortality(receptor, annual_PM['b1'], 'lateneonatal')
+    postneonatal_mortality = health.getAttributableMortality(receptor, annual_PM['b1'], 'postneonatal')
+    age14_mortality = health.getAttributableMortality(receptor, annual_PM['b1'], '1-4')
+    adult_mortality = health.getAttributableMortality(receptor, annual_PM['b1'], 'adult')
 
+    attributable_mortality = [earlyneonatal_mortality, lateneonatal_mortality, postneonatal_mortality, age14_mortality, adult_mortality]
     return mapIds, tokens, exposure, totalPM, provtotal, attributable_mortality
 
 

@@ -163,16 +163,18 @@ body,
   .trendy h1 {
     font-size: 36px;
     padding-left: 20px;
-    padding-right: 40px;
+    padding-right: 20px;
+    padding-top: 0px;
+    padding-bottom: 0px;
   }
 
   .trendy .layerUI {
-    font-size: 16px;
+    font-size: 14px;
   }
 
  .trendy .layerUI td {
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 5px;
+    padding-right: 5px;
 }
   
   .trendy .detailstab {
@@ -230,7 +232,7 @@ body,
   }
 
   .trendy .panel {
-    width: 500px;
+    width: 800px;
     left: 0px;
     top: 126px;
     padding: 14px;
@@ -255,6 +257,29 @@ body,
     right: 14px;
     cursor: pointer;
     z-index: 2;
+    background-color: white;
   }
 
+  .trendy .panel .details .sourcePie {
+    position: absolute;
+    width: 410px;
+    right: 0;
+    padding: 0;
+    margin: 0;
+  }
+
+  .trendy .panel .details .receptorTimeSeries {
+    position: absolute;
+    width: 460px;
+    left: 0;
+    padding: 0;
+    margin: 0;
+  }
+
+  .trendy .panel .details .healthecon {
+    position: absolute;
+    width: 800px;
+    left: 0;
+    top: 270px;
+    height: 200px;
 }
