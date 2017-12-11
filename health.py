@@ -23,7 +23,8 @@ def getAttributableMortality(receptor, exposure, age):
             '1-4': {'2005': {'Indonesia': 37.127353, 'Malaysia': 5.014201, 'Singapore': 3.114068},
             '2010': {'Indonsia': 25.623974, 'Malaysia': 4.512403, 'Singapore': 2.762267},
             '2015': {'Indonesia': 15.716153, 'Malaysia': 3.141835, 'Singapore': 2.381157}},
-            'adult': {'2005': {'Indonesia': 11.69838019976476, 'Malaysia': 46.866452636527164, 'Singapore': 52.17024922961024},
+            'adult': #{'2005': {'Indonesia': 11.69838019976476, 'Malaysia': 46.866452636527164, 'Singapore': 52.17024922961024},
+                     {'2005': {'Indonesia': 0.0099759*100000.0, 'Malaysia': 0.0078068*100000.0, 'Singapore': 0.0076863*100000.0}, 
                 '2010': {'Indonesia': 11.419532683191251, 'Malaysia': 47.8500684668024, 'Singapore': 52.324629794405304},
                 '2015': {'Indonesia': 10.744837776788115, 'Malaysia': 49.84244480909222, 'Singapore': 58.83291894359718}}}
 
@@ -39,7 +40,7 @@ def getAttributableMortality(receptor, exposure, age):
                 '1-4': {'2005': {'Indonesia': 1.792731e7, 'Malaysia': 1.973355e6, 'Singapore': 1.613114e5},
                 '2010': {'Indonesia': 1.919759e7, 'Malaysia': 1.834883e6, 'Singapore': 1.557840e5}, 
                 '2015': {'Indonesia': 1.981817e7, 'Malaysia': 1.937488e6, 'Singapore': 1.539489e5}},
-                'adult': {'2005': {'Indonesia': 203998024.0, 'Malaysia': 23269490.0, 'Singapore': 3359294.0},
+                'adult': {'2005': {'Indonesia': 115498024.0, 'Malaysia': 12979736.0, 'Singapore': 2394994.0},
                 '2010': {'Indonesia': 218774546.0, 'Malaysia': 25798490.0, 'Singapore': 3603053.0},
                 '2015': {'Indonesia': 232821069.0, 'Malaysia': 27854334.0, 'Singapore': 3731829.0}}}
 

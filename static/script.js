@@ -332,7 +332,7 @@ smoke.App.prototype.drawHealthChart = function() {
   // Add chart that shows contribution from each region
     console.info(smoke.App.provincial)
         var healthdata = google.visualization.arrayToDataTable([
-              ['Age group', 'Age 0-1', 'Age 1-4', 'Age 5+', { role: 'annotation' } ],
+              ['Age group', 'Age 0-1', 'Age 1-4', 'Age 25+', { role: 'annotation' } ],
               ['Business as usual', smoke.App.endeaths[1]+smoke.App.lndeaths[1]+smoke.App.pndeaths[1], smoke.App.a14deaths[1], smoke.App.adultdeaths[1], ''],
               ['Current scenario', smoke.App.endeaths[1]+smoke.App.lndeaths[1]+smoke.App.pndeaths[1], smoke.App.a14deaths[1], smoke.App.adultdeaths[1], '']
         ]);
