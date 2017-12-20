@@ -32,7 +32,7 @@ class MainHandler(webapp2.RequestHandler):
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
 
-    mapIds, tokens, exposure, totalPM, provtotal, mort = GetMapData('GFED4', 'Singapore', 2006, 2006, False, False, False, False, False)
+    mapIds, tokens, exposure, totalPM, provtotal, mort = GetMapData('Miriam', 'Singapore', 2006, 2006, False, False, False, False, False)
 
     print(mapIds)
 
@@ -210,7 +210,8 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
     # third layer is sensitivities and pm
     sensitivities = getSensitivity(receptor, metYear)
     meansens = sensitivities.filterDate(str(metYear)+'-09-01', str(metYear)+'-11-01').mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
-    mapid = GetMapId(meansens.select('b1').add(meansens.select('b2')).multiply(SCALE_FACTOR*1e3), maxVal=0.10, maskValue=0.001, color='FFFFFF, FE9CFF, FF00B4, CC00FF, 5F00E5, 0003AE')
+    print(ee.Image(meansens).bandNames().getInfo())
+    mapid = GetMapId(ee.Image(meansens).select('b1').add(meansens.select('b2')).multiply(SCALE_FACTOR*1e3), maxVal=0.10, maskValue=0.001, color='FFFFFF, FE9CFF, FF00B4, CC00FF, 5F00E5, 0003AE')
     mapIds.append([mapid['mapid']])
     tokens.append([mapid['token']])
     
@@ -249,6 +250,8 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
     mapIds[3].append(mapid['mapid'])
     tokens[3].append(mapid['token'])
 
+    print('annual pm {}'.format(annual_PM['b1']))
+
     earlyneonatal_mortality = health.getAttributableMortality(receptor, annual_PM['b1'], 'earlyneonatal')
     lateneonatal_mortality = health.getAttributableMortality(receptor, annual_PM['b1'], 'lateneonatal')
     postneonatal_mortality = health.getAttributableMortality(receptor, annual_PM['b1'], 'postneonatal')
@@ -275,9 +278,17 @@ def getSensitivity(receptor, year, monthly=True):
     """Gets sensitivity for a particular receptor and meteorological year."""
     if monthly:
         sensitivities = ee.ImageCollection('users/karenyu/'+receptor+'_monthly_sensitivities').filterDate(str(year)+'-01-01', str(year)+'-12-31').sort('system:time_start', True) # sort in ascending order
+        def divide_by_days(image):
+            ndays = ee.Number(image.get('ndays'))
+            date = image.get('system:time_start')
+            footprint = image.get('system:footprint')
+            newimage = image.multiply(ee.Image(ee.Number(1.0).divide(ndays).divide(ndays))).set('system:time_start', date).set('system:footprint', footprint)
+            return ee.Image(newimage)
+
+        return ee.ImageCollection(sensitivities.map(divide_by_days));
     else:
         sensitivities = ee.ImageCollection('users/karenyu/'+receptor+'_sensitivities').filterDate(str(year)+'-01-01', str(year)+'-12-31')
-    return sensitivities
+        return sensitivities
 
 
 def getDailyPM(sensitivities):
@@ -341,8 +352,8 @@ def getMonthlyPM(sensitivities, emiss):
     def computePM(data):
         sensitivity = ee.Image(ee.List(data).get(0))
         emission = ee.Image(ee.List(data).get(1))
-        pm_philic = sensitivity.select('b1').multiply(emission.select('b1')).multiply(ee.Image(SCALE_FACTOR/30.0/30.0))
-        pm_phobic = sensitivity.select('b2').multiply(emission.select('b2')).multiply(ee.Image(SCALE_FACTOR/30.0/30.0))
+        pm_philic = sensitivity.select('b1').multiply(emission.select('b1')).multiply(ee.Image(SCALE_FACTOR))
+        pm_phobic = sensitivity.select('b2').multiply(emission.select('b2')).multiply(ee.Image(SCALE_FACTOR))
         return pm_philic.add(pm_phobic).set('system:footprint', sensitivity.get('system:footprint')).set('system:time_start', sensitivity.get('system:time_start'))
 
     # iterate over all files

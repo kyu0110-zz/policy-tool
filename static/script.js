@@ -331,9 +331,20 @@ smoke.App.prototype.hideScenario = function(event) {
 smoke.App.prototype.drawHealthChart = function() {
   // Add chart that shows contribution from each region
     console.info(smoke.App.provincial)
+        console.info(smoke.App.endeaths[1]+smoke.App.lndeaths[1]+smoke.App.pndeaths[1])
+        console.info(smoke.App.a14deaths[1])
+        console.info(smoke.App.adultdeaths[1])
+        console.info(smoke.App.receptor)
+        if (smoke.App.emissYear < 2010) {
+            var bau_index = 0
+        } else if (smoke.App.emissYear < 2025) {
+            var bau_index = 1
+        } else if (smoke.App.emissYear < 2030) {
+            var bau_indx = 2
+        }
         var healthdata = google.visualization.arrayToDataTable([
               ['Age group', 'Age 0-1', 'Age 1-4', 'Age 25+', { role: 'annotation' } ],
-              ['Business as usual', smoke.App.endeaths[1]+smoke.App.lndeaths[1]+smoke.App.pndeaths[1], smoke.App.a14deaths[1], smoke.App.adultdeaths[1], ''],
+              ['Business as usual', smoke.App.BAU[0][smoke.App.receptor][bau_index][smoke.App.metYear-2005], smoke.App.BAU[1][smoke.App.receptor][bau_index][smoke.App.metYear-2005], smoke.App.BAU[2][smoke.App.receptor][bau_index][smoke.App.metYear-2005], ''],
               ['Current scenario', smoke.App.endeaths[1]+smoke.App.lndeaths[1]+smoke.App.pndeaths[1], smoke.App.a14deaths[1], smoke.App.adultdeaths[1], '']
         ]);
 
@@ -343,7 +354,7 @@ smoke.App.prototype.drawHealthChart = function() {
            bar: { groupWidth: '75%' },
            isStacked: true,
            chartArea: {width: '60%'},
-           title: 'Attributable Mortality'
+           title: 'Mortality attributable to total PM exposure'
        };
 
     var wrapper = new google.visualization.ChartWrapper({
@@ -449,14 +460,13 @@ smoke.App.prototype.newScenario = function() {
          conservation: $('#conservation').is(':checked')
       },
       function(data) {
-        // Get new maptype
-        var mapType = smoke.App.getEeMapType(JSON.parse(data.eeMapId)[2][1], JSON.parse(data.eeToken)[2][1]);
-        console.info(data.eeMapId);
-        console.info(data.totalPM);
-
         // Set other map values
         smoke.App.mapids = JSON.parse(data.eeMapId);
         smoke.App.tokens = JSON.parse(data.eeToken);
+
+        smoke.App.receptor = $('#receptor').val();
+        smoke.App.metYear = $('#metYear').val();
+        smoke.App.emissYear = $('#emissYear').val();
 
         // Set total PM equal to extracted value
         smoke.App.total_PM = data.totalPM.toFixed(2);
@@ -469,14 +479,56 @@ smoke.App.prototype.newScenario = function() {
         smoke.App.a14deaths = JSON.parse(data.a14deaths);
         smoke.App.adultdeaths = JSON.parse(data.adultdeaths);
 
-        // Overlap new map
-        mapType.setOpacity(0.4);
-    
+        // Also need to retrieve scenario
+        smoke.App.scenario = data.scenario;
+        console.info(smoke.App.scenario)
+
         // clear old map layers
         map.overlayMapTypes.clear();
-    
+ 
+        for (var i=0; i<smoke.App.layers.length; i++) {
+            layername = smoke.App.layers[i];
+            console.info(layername)
+            if (layername == "LANDCOVER") {
+                layer_index = 0;
+                if ($('#present').is(':checked')) {
+                    id_index = 0;
+                } else if ($('#BAU2010').is(':checked')) {
+                    console.info("works")
+                    id_index = 1; 
+                } else if ($('#BAU2015').is(':checked')) {
+                    id_index = 2;
+                } else if ($('#BAU2020').is(':checked')) {
+                    id_index = 3;
+                } else if ($('#BAU2025').is(':checked')) {
+                    id_index = 4;
+                } else if ($('#BAU2030').is(':checked')) {
+                    id_index = 5;
+                }
+                var opacity = 0.8;
+            } else if (layername == "EMISSIONS") {
+                layer_index = 1;
+                id_index = 0;
+                var opacity = 0.6;
+            } else if (layername == "GEOSCHEM") {
+                layer_index = 2;
+                if ($('#sensitivity').is(':checked')) {
+                    id_index = 0;
+                } else {
+                    id_index = 1;
+                }
+                var opacity = 0.6;
+            };
+
+            console.info(layer_index);
+            console.info(id_index);
+
+            var mapType = smoke.App.getEeMapType(JSON.parse(data.eeMapId)[layer_index][id_index], JSON.parse(data.eeToken)[layer_index][id_index]);
+            mapType.setOpacity(opacity);
+
         // draw new map layer    
         map.overlayMapTypes.push(mapType);
+        };
 
         // Redraw charts
         $('.panel').hide();
@@ -705,6 +757,12 @@ smoke.App.mapids;
 smoke.App.tokens;
 smoke.App.layers = ["GEOSCHEM"];
 smoke.App.ids = [];
+smoke.App.receptor = 'Singapore'
+smoke.App.metYear = 2006
+smoke.App.emissYear = 2006
+smoke.App.BAU = [{'Indonesia': [[2266, 2266, 2266, 2266, 2266], [775, 2622, 185, 135, 1286], [816, 2715, 187, 135, 1331]], 'Malaysia': [[19, 19, 19, 19, 19], [6, 25, 1, 2, 13], [7, 27, 1, 2, 13]], 'Singapore': [[1, 1, 1, 1, 1], [0, 2, 0, 0, 1], [0, 2, 0, 0, 1]]}, 
+        {'Indonesia': [[558, 588, 588, 588, 558], [191, 646, 46, 33, 317], [201, 669, 46, 33, 328]], 'Malaysia': [[7, 7, 7, 7, 7], [3, 10, 0, 1, 5], [3, 11, 0, 1, 5]], 'Singapore': [[1, 1, 1, 1, 1], [0, 1, 0, 0, 0], [0, 1, 0, 0, 0,]]}, 
+            {'Indonesia': [[86759, 86759, 86759, 86759, 86759], [29680, 100372, 7091, 5171, 49220], [31225, 103926, 7183, 5171, 50963]], 'Malaysia': [[6921, 6921, 6921, 6921, 6921], [2404, 9396, 334, 583, 4722], [2572, 9986, 338, 561, 4792]], 'Singapore': [[1673, 1673, 1673, 1673, 1673], [626, 2232, 75, 7116, 1133], [663, 2350, 77, 115, 1193]]}];
 
 smoke.App.HEALTH = false;
 smoke.App.GEOSCHEM = true;

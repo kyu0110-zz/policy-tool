@@ -98,10 +98,10 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
             maskedEmissions = maskedEmissions.updateMask(conservationmask)
 
         # split into GEOS-Chem hydrophobic and hydrophilic fractions
-        ocpo = oc_bc_emissions.select('oc').multiply(ee.Image(0.5 * 2.1 ))  # g OA
-        ocpi = oc_bc_emissions.select('oc').multiply(ee.Image(0.5 * 2.1 ))  # g OA
-        bcpo = oc_bc_emissions.select('bc').multiply(ee.Image(0.8))        # g BC
-        bcpi = oc_bc_emissions.select('bc').multiply(ee.Image(0.2))        # g BC
+        ocpo = maskedEmissions.select('oc').multiply(ee.Image(0.5 * 2.1 ))  # g OA
+        ocpi = maskedEmissions.select('oc').multiply(ee.Image(0.5 * 2.1 ))  # g OA
+        bcpo = maskedEmissions.select('bc').multiply(ee.Image(0.8))        # g BC
+        bcpi = maskedEmissions.select('bc').multiply(ee.Image(0.2))        # g BC
 
         emissions_philic = ocpi.add(bcpi).multiply(ee.Image(1.0e-3)).rename(['b1'])
         emissions_phobic = ocpo.add(bcpo).multiply(ee.Image(1.0e-3)).rename(['b1'])
