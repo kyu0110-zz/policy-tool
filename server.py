@@ -32,9 +32,11 @@ class MainHandler(webapp2.RequestHandler):
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
 
-    mapIds, tokens, exposure, totalPM, provtotal, mort = GetMapData('Miriam', 'Singapore', 2006, 2006, False, False, False, False, False)
+    mapIds, tokens, exposure, totalPM, provtotal, mort, totalE = GetMapData('Miriam', 'Singapore', 2006, 2006, False, False, False, False, False)
 
     print(mapIds)
+    print('testing')
+    print(totalE['bc'])
 
     print(provtotal)
     # Compute the totals for different provinces.
@@ -50,7 +52,8 @@ class MainHandler(webapp2.RequestHandler):
         'lndeaths': json.dumps(mort[1]),
         'pndeaths': json.dumps(mort[2]),
         'a14deaths': json.dumps(mort[3]),
-        'adultdeaths': json.dumps(mort[4])
+        'adultdeaths': json.dumps(mort[4]),
+        'totalE': json.dumps(totalE)
     }
     template = JINJA2_ENVIRONMENT.get_template('index.html')
     self.response.out.write(template.render(template_values))
@@ -138,7 +141,7 @@ class DetailsHandler(webapp2.RequestHandler):
 
         if receptor in RECEPTORS:
 
-            mapIds, tokens, exposure, totalPM, provtotal, mort = GetMapData(scenario, receptor, metYear, emissYear, logging_bool, oilpalm_bool, timber_bool, peatlands_bool, conservation_bool)
+            mapIds, tokens, exposure, totalPM, provtotal, mort, totalE = GetMapData(scenario, receptor, metYear, emissYear, logging_bool, oilpalm_bool, timber_bool, peatlands_bool, conservation_bool)
         else:
             mapIds  = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
             tokens = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
@@ -154,7 +157,8 @@ class DetailsHandler(webapp2.RequestHandler):
             'lndeaths': json.dumps(mort[1]),
             'pndeaths': json.dumps(mort[2]),
             'a14deaths': json.dumps(mort[3]),
-            'adultdeaths': json.dumps(mort[4])
+            'adultdeaths': json.dumps(mort[4]),
+            'totalE': json.dumps(totalE)
         }
         self.response.out.write(json.dumps(template_values))
         #self.response.headers['Content-Type'] = 'application/json'
@@ -193,12 +197,12 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
     tokens.append(landcover_tokens)
 
     # second layer is emissions
-    emissions = emiss.getEmissions(scenario, emissYear, metYear, logging, oilpalm, timber, peatlands, conservation)
+    emissions, total_emissions = emiss.getEmissions(scenario, emissYear, metYear, logging, oilpalm, timber, peatlands, conservation)
 
     if scenario == 'GFED4': 
-        scale = 1e9 * 2.592e-6 / 784.0e6
+        scale = 1e9 * 2.592e-6 
     else:
-        scale = 1e9 * 2.592e-6 / (926.0 * 926)
+        scale = 1e9 * 2.592e-6 
 
     print(ee.Image(emissions.first()).bandNames().getInfo())
     emissions_display = ee.Image(ee.ImageCollection(emissions.toList(1, 8)).first()).add(ee.Image(ee.ImageCollection(emissions.toList(1,9)).first())) 
@@ -209,9 +213,9 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
 
     # third layer is sensitivities and pm
     sensitivities = getSensitivity(receptor, metYear)
-    meansens = sensitivities.filterDate(str(metYear)+'-09-01', str(metYear)+'-11-01').mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
+    meansens = sensitivities.filterDate(str(metYear)+'-07-01', str(metYear)+'-11-01').mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
     print(ee.Image(meansens).bandNames().getInfo())
-    mapid = GetMapId(ee.Image(meansens).select('b1').add(meansens.select('b2')).multiply(SCALE_FACTOR*1e3), maxVal=0.10, maskValue=0.001, color='FFFFFF, FE9CFF, FF00B4, CC00FF, 5F00E5, 0003AE')
+    mapid = GetMapId(ee.Image(meansens).select('b1').add(meansens.select('b2')).multiply(SCALE_FACTOR*1e3*30*31), maxVal=0.10, maskValue=0.001, color='FFFFFF, FE9CFF, FF00B4, CC00FF, 5F00E5, 0003AE')
     mapIds.append([mapid['mapid']])
     tokens.append([mapid['token']])
     
@@ -222,7 +226,7 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
     exposure = getExposureTimeSeries(pm)
 
     # we only want map for Sept + Oct
-    summer_pm = pm.filterDate(str(metYear)+'-09-01', str(metYear)+'-11-01')
+    summer_pm = pm.filterDate(str(metYear)+'-07-01', str(metYear)+'-11-01')
 
     totPM = summer_pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
     annualPM = pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
@@ -259,7 +263,7 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
     adult_mortality = health.getAttributableMortality(receptor, annual_PM['b1'], 'adult')
 
     attributable_mortality = [earlyneonatal_mortality, lateneonatal_mortality, postneonatal_mortality, age14_mortality, adult_mortality]
-    return mapIds, tokens, exposure, totalPM, provtotal, attributable_mortality
+    return mapIds, tokens, exposure, totalPM, provtotal, attributable_mortality, total_emissions.getInfo() #ee.Feature(None, {'bc': total_emissions.get('bc')}).getInfo()['properties']
 
 
 def GetMapId(image, maxVal=0.1, maskValue=0.000000000001, color='FFFFFF, 220066'):
@@ -334,12 +338,12 @@ def getMonthlyPM(sensitivities, emiss):
     # get emissions
     #emiss = ee.ImageCollection(ee.List([ee.Image('users/karenyu/placeholder_emissions')]*12))
 
+   
     # aggregate emissions to coarser grid
     grid = ee.FeatureCollection('ft:10zDDmOTT43LmBdYb8p93Ki6BbdXjQDLzdi01aF43')
-    modisScale = ee.Image(ee.ImageCollection('MODIS/006/MOD14A2').first())
 
     def aggregate_image(image):
-        regridded = image.reduceRegions(collection=grid, reducer=ee.Reducer.sum())
+        regridded = image.reduceRegions(collection=grid, reducer=ee.Reducer.mean(), scale=image.projection().nominalScale())
         b1 = regridded.reduceToImage(properties=ee.List(['b1']), reducer=ee.Reducer.mean()).rename(['b1'])
         b2 = regridded.reduceToImage(properties=ee.List(['b2']), reducer=ee.Reducer.mean()).rename(['b2'])
         regridded_image = b1.addBands(b2)
@@ -352,8 +356,8 @@ def getMonthlyPM(sensitivities, emiss):
     def computePM(data):
         sensitivity = ee.Image(ee.List(data).get(0))
         emission = ee.Image(ee.List(data).get(1))
-        pm_philic = sensitivity.select('b1').multiply(emission.select('b1')).multiply(ee.Image(SCALE_FACTOR))
-        pm_phobic = sensitivity.select('b2').multiply(emission.select('b2')).multiply(ee.Image(SCALE_FACTOR))
+        pm_philic = sensitivity.select('b1').multiply(emission.select('b1')).multiply(ee.Image(SCALE_FACTOR)).multiply(ee.Image.pixelArea())
+        pm_phobic = sensitivity.select('b2').multiply(emission.select('b2')).multiply(ee.Image(SCALE_FACTOR)).multiply(ee.Image.pixelArea())
         return pm_philic.add(pm_phobic).set('system:footprint', sensitivity.get('system:footprint')).set('system:time_start', sensitivity.get('system:time_start'))
 
     # iterate over all files

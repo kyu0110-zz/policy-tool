@@ -15,7 +15,7 @@ smoke = {};  // Our namespace.
  * @param {string} serializedPolygonIds A serialized array of the IDs of the
  *     polygons to show on the map. For example: "['poland', 'moldova']".
  */
-smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeseries, endeaths, lndeaths, pndeaths, a14deaths, adultdeaths) {
+smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeseries, endeaths, lndeaths, pndeaths, a14deaths, adultdeaths, totalE) {
   // Load external libraries.
   google.load('visualization', '1.0');
   google.load('jquery', '1');
@@ -39,7 +39,8 @@ smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeser
     smoke.App.pndeaths = JSON.parse(pndeaths);
     smoke.App.a14deaths = JSON.parse(a14deaths);
     smoke.App.adultdeaths = JSON.parse(adultdeaths);
-    console.info(endeaths);
+    smoke.App.totalE = JSON.parse(totalE);
+    console.info(smoke.App.totalE);
 
     // save the map layers
     smoke.App.mapids = JSON.parse(eeMapId);
@@ -65,6 +66,9 @@ smoke.App = function(mapType, boundaries) {
 
   // Draw boundaries
   this.addBoundaries(boundaries);
+  this.addBRG(['brg_nonzero']);
+
+  this.map.data.addListener('click', this.openInfowindow.bind(this));
 
   // Register a click handler to show a panel when user clicks a source region
   $('#peatlands').mouseover(this.handlePeatlandHover.bind(this));
@@ -141,6 +145,42 @@ smoke.App.prototype.createMap = function(mapType) {
   return map;
 };
 
+/**
+ * Add BRG data
+ */
+smoke.App.prototype.addBRG = function(regions) {
+  regions.forEach((function(region) {
+    this.map.data.loadGeoJson('static/brg/' + region + '.json');
+  }).bind(this));
+  this.map.data.setStyle(function(feature) {
+      return {
+          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
+          'strokeWeight': 2,
+          'fillOpacity': 0.0,
+          'fillColor': 'red',
+          'strokeColor': 'red',
+          'strokeOpacity': 0.0
+      };
+  });
+
+};
+
+smoke.App.prototype.openInfowindow = function(event) {
+      var contentString = '<div id="content">'+
+            '<div id="siteNotice">'+
+            '</div>'+
+            '<div id="bodyContent">'+
+            '<p>Number of BRG sites: ' + event.feature.getProperty('sum').toFixed(0) + '</p>'+
+            '</div>'+
+            '</div>';
+
+        var infowindow = new google.maps.InfoWindow({
+          content: contentString
+        });
+
+        infowindow.setPosition(event.latLng);
+        infowindow.open(this.map)
+  };
 
 /**
  * Add boundaries to map
@@ -151,6 +191,7 @@ smoke.App.prototype.addBoundaries = function(regions) {
   }).bind(this));
   this.map.data.setStyle(function(feature) {
       return {
+          'icon': google.maps.SymbolPath.CIRCLE,
           'strokeWeight': 2,
           'fillOpacity': 0.0,
           'fillColor': 'red',
@@ -298,7 +339,7 @@ smoke.App.prototype.handlePolygonClick = function(event) {
 smoke.App.prototype.handlePanelExpand = function(event) {
     $('.detailstab').hide();
     $('.panel').show();
-    $('.panel .title').show().text('Sept + Oct mean PM: ' + smoke.App.total_PM + ' ug/m^3');
+    $('.panel .title').show().text('Jul - Oct mean PM: ' + smoke.App.total_PM + ' ug/m^3, total oc emissions: ' + (smoke.App.totalE['oc']*1.0e-12).toFixed(2) + ' Tg, total bc emissions: ' + (smoke.App.totalE['bc']*1.0e-12).toFixed(2) + ' Tg');
     var lower = smoke.App.endeaths[0] + smoke.App.lndeaths[0] + smoke.App.pndeaths[0] + smoke.App.a14deaths[0]; 
     var upper = smoke.App.endeaths[2] + smoke.App.lndeaths[2] + smoke.App.pndeaths[2] + smoke.App.a14deaths[2];
     $('.panel .subtitle').show().text('Attributable deaths: ' + lower.toFixed(0) + ' - ' + upper.toFixed(0) + ' (children), ' + smoke.App.adultdeaths[0].toFixed(0) + ' - ' + smoke.App.adultdeaths[2].toFixed(0) + ' (adult)');
@@ -478,6 +519,7 @@ smoke.App.prototype.newScenario = function() {
         smoke.App.pndeaths = JSON.parse(data.pndeaths);
         smoke.App.a14deaths = JSON.parse(data.a14deaths);
         smoke.App.adultdeaths = JSON.parse(data.adultdeaths);
+        smoke.App.totalE = JSON.parse(data.totalE);
 
         // Also need to retrieve scenario
         smoke.App.scenario = data.scenario;
@@ -753,6 +795,7 @@ smoke.App.lndeaths;
 smoke.App.pndeaths;
 smoke.App.a14deaths;
 smoke.App.adultdeaths;
+smoke.App.totalE;
 smoke.App.mapids;
 smoke.App.tokens;
 smoke.App.layers = ["GEOSCHEM"];

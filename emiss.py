@@ -28,14 +28,13 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
     # map comes from IAV file
     #monthly_dm = (emissions * map)   # Gg to Tg 
 
-    # function to compute oc and bc emissions from dm
-    def get_oc_bc(dm_emissions):
-               
+    # mask out emissions
+    def mask_emissions(ems):
         # first mask out data from regions that are turned off
         if logging:
-            maskedEmissions = dm_emissions.updateMask(loggingmask)
+            maskedEmissions = ems.updateMask(loggingmask)
         else:
-            maskedEmissions = dm_emissions
+            maskedEmissions = ems
         if oilpalm:
             maskedEmissions = maskedEmissions.updateMask(oilpalmmask)
         if timber:
@@ -44,7 +43,11 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
             maskedEmissions = maskedEmissions.updateMask(peatmask)
         if conservation:
             maskedEmissions = maskedEmissions.updateMask(conservationmask)
+        return maskedEmissions
 
+    # function to compute oc and bc emissions from dm
+    def get_oc_bc(dm_emissions):
+        
         land_types = ['PET', 'DEF', 'AGRI', 'SAV', 'TEMP', 'PLT']
 
         #bands = ['b5', 'b4', 'b6', 'b1', 'b3', 'b2']
@@ -111,11 +114,20 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
 
 
     if scenario=='GFED4':
-        emissions = monthly_dm.map(get_oc_bc)
+        emissions_masked = monthly_dm.map(mask_emissions)
+        emissions = emissions_masked.map(get_oc_bc)
     else:
-        emissions = monthly_dm.map(convert_transition_emissions)
+        emissions_masked = monthly_dm.map(mask_emissions)
+        emissions = emissions_masked.map(convert_transition_emissions)
 
-    return emissions
+    # compute total emissions
+    def sum_collection(image, first):
+        return ee.Image(first).add(ee.Image(image))
+
+    total_emissions = ee.Image(emissions_masked.iterate(sum_collection, ee.Image(0))).multiply(ee.Image.pixelArea()).reduceRegion(reducer=ee.Reducer.sum(), geometry=ee.Geometry.Rectangle([60, -20, 160, 60]), scale=ee.Image(emissions_masked.first()).projection().nominalScale(), maxPixels=1e9)
+    print(total_emissions.getInfo())
+
+    return emissions, total_emissions
 
 
 def getDownscaled(emissyear, metyear, peatmask):
@@ -153,6 +165,7 @@ def getDownscaled(emissyear, metyear, peatmask):
 
     scaled_emissions = transition_emissions #.map(scale_IAV)
 
+    
     return scaled_emissions
 
 def getTransition(initialLandcover, finalLandcover, peatmask, year):
@@ -167,7 +180,7 @@ def getTransition(initialLandcover, finalLandcover, peatmask, year):
     final_masks = []
 
     # area of grid cell (m^2) and g to kg
-    scaling_factor = 926.625433 * 926.625433 * 1.0e-3
+    scaling_factor = 1.0e-3
 
     reverse_peatmask = peatmask.subtract(ee.Image(1)).multiply(ee.Image(-1))
     # order: DG, IN, NF, TM, OPL, NPL
