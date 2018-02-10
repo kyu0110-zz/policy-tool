@@ -66,7 +66,7 @@ smoke.App = function(mapType, boundaries) {
 
   // Draw boundaries
   this.addBoundaries(boundaries);
-  this.addBRG(['brg_nonzero']);
+  this.addBRG(['brg_grid']);
 
   this.map.data.addListener('click', this.openInfowindow.bind(this));
 
@@ -150,27 +150,50 @@ smoke.App.prototype.createMap = function(mapType) {
  */
 smoke.App.prototype.addBRG = function(regions) {
   regions.forEach((function(region) {
-    this.map.data.loadGeoJson('static/brg/' + region + '.json');
+    this.map.data.loadGeoJson('static/brgg/' + region + '.json');
   }).bind(this));
   this.map.data.setStyle(function(feature) {
-      return {
-          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
+      var s = feature.getProperty('sum');
+      var t5 = feature.getProperty('top5');
+      if (s > 0 && t5 > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'orange',
+              'strokeColor': 'orange',
+              'strokeOpacity': 1.0
+          };
+      } else if (s > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'grey',
+              'strokeColor': 'grey',
+              'strokeOpacity': 1.0
+        };
+      } else {
+        return {
+          //'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
           'strokeWeight': 2,
           'fillOpacity': 0.0,
           'fillColor': 'red',
           'strokeColor': 'red',
           'strokeOpacity': 0.0
+        };
       };
-  });
+    });
 
 };
 
 smoke.App.prototype.openInfowindow = function(event) {
+      s = event.feature.getProperty('sum')
+      console.info(s)
+      if (s > 0) {
       var contentString = '<div id="content">'+
             '<div id="siteNotice">'+
             '</div>'+
             '<div id="bodyContent">'+
-            '<p>Number of BRG sites: ' + event.feature.getProperty('sum').toFixed(0) + '</p>'+
+            '<p>Number of BRG sites: ' + s.toFixed(0) + '</p>'+
             '</div>'+
             '</div>';
 
@@ -180,7 +203,8 @@ smoke.App.prototype.openInfowindow = function(event) {
 
         infowindow.setPosition(event.latLng);
         infowindow.open(this.map)
-  };
+    }
+    };
 
 /**
  * Add boundaries to map
@@ -190,13 +214,24 @@ smoke.App.prototype.addBoundaries = function(regions) {
     this.map.data.loadGeoJson('static/regions/' + region + '.json');
   }).bind(this));
   this.map.data.setStyle(function(feature) {
-      return {
-          'icon': google.maps.SymbolPath.CIRCLE,
+      var s = feature.getProperty('sum');
+      if (s > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'grey',
+              'strokeColor': 'grey',
+              'strokeOpacity': 1.0
+          };
+      } else {
+        return {
+          //'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
           'strokeWeight': 2,
           'fillOpacity': 0.0,
           'fillColor': 'red',
           'strokeColor': 'red',
           'strokeOpacity': 0.0
+        };
       };
   });
 };
@@ -212,6 +247,7 @@ smoke.App.prototype.handlePeatlandHover = function(event) {
             opacity = 0.0;
         };
      return {
+          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
          'strokeWeight': 2,
          'fillOpacity': fillopacity,
          'fillColor': 'red',
@@ -232,6 +268,7 @@ smoke.App.prototype.handleLoggingHover = function(event) {
             opacity = 0.0;
         };
      return {
+          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
          'strokeWeight': 2,
          'fillOpacity': fillopacity,
          'fillColor': 'red',
@@ -252,6 +289,7 @@ smoke.App.prototype.handleOilpalmHover = function(event) {
             opacity = 0.0;
         };
      return {
+          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
          'strokeWeight': 2,
          'fillOpacity': fillopacity,
          'fillColor': 'red',
@@ -272,6 +310,7 @@ smoke.App.prototype.handleConservationHover = function(event) {
             opacity = 0.0;
         };
      return {
+          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
          'strokeWeight': 2,
          'fillOpacity': fillopacity,
          'fillColor': 'red',
@@ -292,6 +331,7 @@ smoke.App.prototype.handleTimberHover = function(event) {
             opacity = 0.0;
         };
      return {
+          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
          'strokeWeight': 2,
          'fillOpacity': fillopacity,
          'fillColor': 'red',
@@ -307,6 +347,7 @@ smoke.App.prototype.handleTimberHover = function(event) {
 smoke.App.prototype.handlePolygonOut = function(event) { 
     this.map.data.setStyle(function(feature) {
       return {
+          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
           'strokeWeight': 3,
           'fillOpacity': 0.0,
           'fillColor': 'red',
