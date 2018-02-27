@@ -206,7 +206,7 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
 
     print(ee.Image(emissions.first()).bandNames().getInfo())
     emissions_display = ee.Image(ee.ImageCollection(emissions.toList(1, 8)).first()).add(ee.Image(ee.ImageCollection(emissions.toList(1,9)).first())) 
-    mapid = GetMapId(emissions_display.select('b1').add(emissions_display.select('b2')).multiply(scale), maxVal=10e0, maskValue=1e-6, color='FFFFFF, FFFF00, FFC100, FF7700, DE2700, 761200')
+    mapid = GetMapId(emissions_display.select('b1').add(emissions_display.select('b2')).multiply(scale), maxVal=1e-1, maskValue=1e-6, color='FFFFFF, FFFF00, FFC100, FF7700, DE2700, 761200')
 
     mapIds.append([mapid['mapid']])
     tokens.append([mapid['token']])
@@ -343,9 +343,9 @@ def getMonthlyPM(sensitivities, emiss):
     grid = ee.FeatureCollection('ft:10zDDmOTT43LmBdYb8p93Ki6BbdXjQDLzdi01aF43')
 
     def aggregate_image(image):
-        regridded = image.reduceRegions(collection=grid, reducer=ee.Reducer.mean(), scale=image.projection().nominalScale())
-        b1 = regridded.reduceToImage(properties=ee.List(['b1']), reducer=ee.Reducer.mean()).rename(['b1'])
-        b2 = regridded.reduceToImage(properties=ee.List(['b2']), reducer=ee.Reducer.mean()).rename(['b2'])
+        regridded = image.reduceRegions(collection=grid, reducer=ee.Reducer.mean().unweighted(), scale=image.projection().nominalScale())
+        b1 = regridded.reduceToImage(properties=ee.List(['b1']), reducer=ee.Reducer.mean().unweighted()).rename(['b1'])
+        b2 = regridded.reduceToImage(properties=ee.List(['b2']), reducer=ee.Reducer.mean().unweighted()).rename(['b2'])
         regridded_image = b1.addBands(b2)
         return regridded_image
 
@@ -371,7 +371,7 @@ def getExposureTimeSeries(imageCollection):
     """Computes the exposure at receptor site"""
 
     def sumRegion(image):
-        PM_at_receptor = image.reduceRegion(reducer=ee.Reducer.sum())
+        PM_at_receptor = image.reduceRegion(reducer=ee.Reducer.sum().unweighted())
         return ee.Feature(None, {'b1': PM_at_receptor.get('b1'),
                                  'index': image.get('system:index')})
 
@@ -388,14 +388,14 @@ def getExposureTimeSeries(imageCollection):
 def computeTotal(image, projection):
     """Computes total over a specific region"""
     geom = ee.Geometry.Rectangle([-55, -20, 40, 20]);
-    totalValue = image.reduceRegion(reducer=ee.Reducer.sum(), maxPixels=1e9, crs=projection)
+    totalValue = image.reduceRegion(reducer=ee.Reducer.sum().unweighted(), maxPixels=1e9, crs=projection)
 
     return ee.Feature(None, {'b1': totalValue.get('b1')}).getInfo()['properties']
 
 
 def computeRegionalTotal(image, regions, projection):
     """Computes the provincial totals"""
-    provincialTotals = image.reduceRegions(regions, reducer=ee.Reducer.sum(), crs=projection)
+    provincialTotals = image.reduceRegions(regions, reducer=ee.Reducer.sum().unweighted(), crs=projection)
 
     # remove unncessary info
     def strip(feature):

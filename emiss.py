@@ -3,6 +3,7 @@ import ee
 def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, conservation):
     """Gets the dry matter emissions from GFED4 and converts to oc/bc using emission factors associated with GFED4"""
 
+    ds_grid = ee.Image('projects/IndonesiaPolicyTool/dsGFEDgrid')
     print("SCENARIO", scenario)
     peatmask = getPeatlands()
     if logging:
@@ -124,8 +125,9 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
     def sum_collection(image, first):
         return ee.Image(first).add(ee.Image(image))
 
-    total_emissions = ee.Image(emissions_masked.iterate(sum_collection, ee.Image(0))).multiply(ee.Image.pixelArea()).reduceRegion(reducer=ee.Reducer.sum(), geometry=ee.Geometry.Rectangle([60, -20, 160, 60]), scale=ee.Image(emissions_masked.first()).projection().nominalScale(), maxPixels=1e9)
-    print(total_emissions.getInfo())
+    #total_emissions = monthly_dm.sum().reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).multiply(ee.Image.pixelArea()).reduceRegion(reducer=ee.Reducer.sum().unweighted(), geometry=ee.Geometry.Rectangle([90,-20,150,10]), scale=ee.Image(emissions_masked.first()).projection().nominalScale(), maxPixels=1e9)
+    total_emissions = ee.Image(monthly_dm.iterate(sum_collection, ee.Image(0))).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).multiply(ee.Image.pixelArea()).reduceRegion(reducer=ee.Reducer.sum().unweighted(), geometry=ee.Geometry.Rectangle([90,-20,150,10]), crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale(), maxPixels=1e9)
+    print('total emissions: {}'.format(total_emissions.getInfo()))
 
     return emissions, total_emissions
 
@@ -139,20 +141,20 @@ def getDownscaled(emissyear, metyear, peatmask):
     print(emissyear)
     # find closest year for land-use scenarios
     if emissyear >= 2025:
-        start_landcover = ee.Image('users/karenyu/future_LULC_MarHan4')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHan5')
+        start_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2025')
+        end_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2030')
     elif emissyear >= 2020:
-        start_landcover = ee.Image('users/karenyu/future_LULC_MarHan3')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHan4')
+        start_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2020')
+        end_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2025')
     elif emissyear >= 2015: 
-        start_landcover = ee.Image('users/karenyu/future_LULC_MarHan2')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHan3')
+        start_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2015')
+        end_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2020')
     elif emissyear >= 2010: 
-        start_landcover = ee.Image('users/karenyu/future_LULC_MarHan1')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHan2')
+        start_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2010')
+        end_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2015')
     elif emissyear >= 2005:
-        start_landcover = ee.Image('users/karenyu/marHanS2005_sin')
-        end_landcover = ee.Image('users/karenyu/marHanS2010_sin')
+        start_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS2005')
+        end_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS2010')
 
     # get the transition emissions
     transition_emissions = getTransition(start_landcover, end_landcover, peatmask, year=(metyear-2005) )
@@ -170,11 +172,18 @@ def getDownscaled(emissyear, metyear, peatmask):
 
 def getTransition(initialLandcover, finalLandcover, peatmask, year):
     """ Returns emissions due to land cover transitions at 1 km resolution in kg DM per grid cell"""
+    
+    ds_grid = ee.Image('projects/IndonesiaPolicyTool/dsGFEDgrid')
+    
     # get masks for the different islands
-    islands = ee.Image('users/karenyu/indo_boundaries_sin')
-    suma_mask = islands.eq(ee.Image(2))
-    kali_mask = islands.eq(ee.Image(3))
-    indo_mask = suma_mask.add(kali_mask).lt(ee.Image(1))
+    islands = ee.Image('projects/IndonesiaPolicyTool/island_boundary_null').reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+
+    suma_mask = islands.eq(ee.Image(2)).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+    kali_mask = islands.eq(ee.Image(3)).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+    #indo_mask = islands.eq(ee.Image(1)).add(islands.gt(ee.Image(3))).gt(0).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+    indo_mask = ee.Image('users/karenyu/indonesia').reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+    # print area
+    print("Area: {}".format(indo_mask.multiply(ee.Image.pixelArea()).reduceRegion(geometry=ee.Geometry.Rectangle([90,-20,150,10]), crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale(), reducer=ee.Reducer.sum(), maxPixels=1e9).getInfo()))
 
     initial_masks = []
     final_masks = []
@@ -183,7 +192,7 @@ def getTransition(initialLandcover, finalLandcover, peatmask, year):
     scaling_factor = 1.0e-3
 
     reverse_peatmask = peatmask.subtract(ee.Image(1)).multiply(ee.Image(-1))
-    # order: DG, IN, NF, TM, OPL, NPL
+    # order: DG, IN, NF, PL
     for i in range(1,5):
         initial_masks.append(initialLandcover.eq(ee.Image(i)))
         final_masks.append(finalLandcover.eq(ee.Image(i)))
@@ -194,7 +203,9 @@ def getTransition(initialLandcover, finalLandcover, peatmask, year):
     gfed_index    = [3, 3, 3, 3, 3, 3, 3, 0, 0]
 
     #        SAVA  BORF TEMF DEFO  PEAT AGRI
+    #oc_ef = [1.00, 1.0, 1.0, 1.00, 1.00, 1.0]
     oc_ef = [2.62, 9.6, 9.6, 4.71, 6.02, 2.3]
+    #bc_ef = [1.00, 1.0, 1.0, 1.00, 1.00, 1.00]
     bc_ef = [0.37, 0.5, 0.5, 0.52, 0.04, 0.75]
 
     emissions_all_months = ee.List([])
@@ -205,20 +216,20 @@ def getTransition(initialLandcover, finalLandcover, peatmask, year):
         suma_nonpeat_rates = SUMA_NONPEAT[month+12*year]
         suma_peat_rates = SUMA_PEAT[month+12*year]
         indo_nonpeat_rates = INDO_NONPEAT[month+12*year] #INDO_NONPEAT[month]
-        indo_peat_rates = INDO_PEAT[month+12*year] #INDO_PEAT[month]
+        #indo_peat_rates = INDO_PEAT[month+12*year] #INDO_PEAT[month]
         #accumulate emissions    926.625433
-        kali_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_nonpeat_rates[0] * scaling_factor * oc_ef[3]).updateMask(kali_mask).updateMask(peatmask))
-        kali_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_nonpeat_rates[0] * scaling_factor * bc_ef[3]).updateMask(kali_mask).updateMask(peatmask))
-        kali_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_peat_rates[0] * scaling_factor * oc_ef[4]).updateMask(kali_mask).updateMask(reverse_peatmask))
-        kali_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_peat_rates[0] * scaling_factor * bc_ef[4]).updateMask(kali_mask).updateMask(reverse_peatmask))
-        suma_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_nonpeat_rates[0] * scaling_factor * oc_ef[3]).updateMask(suma_mask).updateMask(peatmask))
-        suma_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_nonpeat_rates[0] * scaling_factor * bc_ef[3]).updateMask(suma_mask).updateMask(peatmask))
-        suma_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_peat_rates[0] * scaling_factor * oc_ef[4]).updateMask(suma_mask).updateMask(reverse_peatmask))
-        suma_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_peat_rates[0] * scaling_factor * bc_ef[4]).updateMask(suma_mask).updateMask(reverse_peatmask))
-        indo_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_nonpeat_rates[0] * scaling_factor * oc_ef[3]).updateMask(indo_mask).updateMask(peatmask))
-        indo_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_nonpeat_rates[0] * scaling_factor * bc_ef[3]).updateMask(indo_mask).updateMask(peatmask))
-        indo_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_peat_rates[0] * scaling_factor * oc_ef[4]).updateMask(indo_mask).updateMask(reverse_peatmask))
-        indo_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_peat_rates[0] * scaling_factor * bc_ef[4]).updateMask(indo_mask).updateMask(reverse_peatmask))
+        kali_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_nonpeat_rates[0] * scaling_factor * oc_ef[3]).updateMask(peatmask)).updateMask(kali_mask).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        kali_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_nonpeat_rates[0] * scaling_factor * bc_ef[3]).updateMask(peatmask)).updateMask(kali_mask).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        kali_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_peat_rates[0] * scaling_factor * oc_ef[4]).updateMask(reverse_peatmask)).updateMask(kali_mask).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        kali_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(kali_peat_rates[0] * scaling_factor * bc_ef[4]).updateMask(reverse_peatmask)).updateMask(kali_mask).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        suma_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_nonpeat_rates[0] * scaling_factor * oc_ef[3]).updateMask(peatmask)).updateMask(suma_mask).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        suma_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_nonpeat_rates[0] * scaling_factor * bc_ef[3]).updateMask(peatmask)).updateMask(suma_mask).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        suma_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_peat_rates[0] * scaling_factor * oc_ef[4]).updateMask(reverse_peatmask)).updateMask(suma_mask).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        suma_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(suma_peat_rates[0] * scaling_factor * bc_ef[4]).updateMask(reverse_peatmask)).updateMask(suma_mask).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        indo_nonpeat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_nonpeat_rates[0] * scaling_factor * oc_ef[3])).updateMask(indo_mask).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        indo_nonpeat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_nonpeat_rates[0] * scaling_factor * bc_ef[3])).updateMask(indo_mask).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        #indo_peat_oc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_peat_rates[0] * scaling_factor * oc_ef[4]).updateMask(reverse_peatmask)).updateMask(indo_mask).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        #indo_peat_bc = initial_masks[1].multiply(final_masks[1]).multiply(ee.Image(indo_peat_rates[0] * scaling_factor * bc_ef[4]).updateMask(reverse_peatmask)).updateMask(indo_mask).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
         for transition_index in range(1, 9):
             kali_nonpeat_oc = kali_nonpeat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_nonpeat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
             kali_nonpeat_bc = kali_nonpeat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(kali_nonpeat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
@@ -230,12 +241,14 @@ def getTransition(initialLandcover, finalLandcover, peatmask, year):
             suma_peat_bc = suma_peat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(suma_peat_rates[transition_index] * scaling_factor * bc_ef[4])))
             indo_nonpeat_oc = indo_nonpeat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_nonpeat_rates[transition_index] * scaling_factor * oc_ef[gfed_index[transition_index]])))
             indo_nonpeat_bc = indo_nonpeat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_nonpeat_rates[transition_index] * scaling_factor * bc_ef[gfed_index[transition_index]])))
-            indo_peat_oc = indo_peat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_peat_rates[transition_index] * scaling_factor * oc_ef[4])))
-            indo_peat_bc = indo_peat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_peat_rates[transition_index] * scaling_factor * bc_ef[4])))
+            #indo_peat_oc = indo_peat_oc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_peat_rates[transition_index] * scaling_factor * oc_ef[4])))
+            #indo_peat_bc = indo_peat_bc.add(initial_masks[initial_index[transition_index]].multiply(final_masks[final_index[transition_index]]).multiply(ee.Image(indo_peat_rates[transition_index] * scaling_factor * bc_ef[4])))
 
         # add to collection
-        oc = kali_peat_oc.unmask().add(kali_nonpeat_oc.unmask()).add(indo_peat_oc.unmask()).add(indo_nonpeat_oc.unmask()).add(suma_peat_oc.unmask()).add(suma_nonpeat_oc.unmask())
-        bc = kali_peat_bc.unmask().add(kali_nonpeat_bc.unmask()).add(indo_peat_bc.unmask()).add(indo_nonpeat_bc.unmask()).add(suma_peat_bc.unmask()).add(suma_nonpeat_bc.unmask())
+        oc = kali_peat_oc.unmask().add(kali_nonpeat_oc.unmask()).add(indo_nonpeat_oc.unmask()).add(suma_peat_oc.unmask()).add(suma_nonpeat_oc.unmask()).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        #oc = kali_peat_oc.unmask().add(kali_nonpeat_oc.unmask()).add(indo_peat_oc.unmask()).add(indo_nonpeat_oc.unmask()).add(suma_peat_oc.unmask()).add(suma_nonpeat_oc.unmask()).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        bc = kali_peat_bc.unmask().add(kali_nonpeat_bc.unmask()).add(indo_nonpeat_bc.unmask()).add(suma_peat_bc.unmask()).add(suma_nonpeat_bc.unmask()).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+        #bc = kali_peat_bc.unmask().add(kali_nonpeat_bc.unmask()).add(indo_peat_bc.unmask()).add(indo_nonpeat_bc.unmask()).add(suma_peat_bc.unmask()).add(suma_nonpeat_bc.unmask()).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
         emissions_all_months = emissions_all_months.add(oc.addBands(bc).rename(['oc', 'bc']))
 
     return ee.ImageCollection(emissions_all_months)
@@ -266,9 +279,14 @@ def getTimber():
 def getPeatlands():
     """Get boundaries for peatlands"""
     #fc = ee.FeatureCollection('1cSPErISE1fJURsPbeHrnaoCofSa6efRPbBX5bz8a')
+    ft = ee.FeatureCollection('projects/IndonesiaPolicyTool/IDN_peat')
+    ds_grid = ee.Image('projects/IndonesiaPolicyTool/dsGFEDgrid')
+    mask = ft.reduceToImage(properties=ee.List(['id']), reducer=ee.Reducer.max()).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).gt(0).expression("(b('max') > 0) ? 1: 0")
+    region = ee.Geometry.Rectangle([90,-20,150,10]);
 
-    mask = ee.Image('users/karenyu/peatlands')
-    return mask
+    #mask = ee.Image('users/karenyu/peatlands')
+    #mask = ee.Image('projects/IndonesiaPolicyTool/peatlands')
+    return mask.reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).subtract(ee.Image(1)).multiply(ee.Image(-1))
 
 def getConservation():
     """Get boundaries for conservation areas"""
@@ -281,388 +299,387 @@ def getConservation():
 # Data for land cover emissions
 #       in2in             in2dg          in2nf        in2pl         dg2dg          dg2nf        dg2pl         nf2nf         pl2pl
 INDO_NONPEAT = [
-        [0,               0,             0,           0,            0.126468664,   8.095330537, 3.074121942,  0.8981308992, 0.5437315408], #0501
-        [0.0002142532906, 0.01882082839, 0,           0,            0.419107835,   13.68455636, 4.992601463,  1.224905343,  1.327373486],  #0502
-        [0.0006371033727, 0.02098192195, 0,           0,            0.5610106261,  12.9715665,  2.888307422,  1.79579604,   1.967945064],  #0503
-        [0,               0,             0,           0,            0.04371785951, 1.944288923, 0.7675191809, 0.5696320405, 0.2433009629], #0504
-        [0.000465907284,  0,             0,           0,            0.03907231567, 1.433473195, 0.3826001204, 1.280888517,  0.2475396002], #0505
-        [0.0002946935754, 0,             0.4866126084, 0,           0.2190509472,  12.62933679, 4.091800655,  3.547408225,  2.048807514],  #0506
-        [0.01626062269,   0,             0,           0,            0.1616643924,  9.52988979,  3.356835988,  4.648076757,  1.999061892],  #0507
-        [0.06010067786,   0.1169658276,  0,      0.2084429595,      1.218613913,   54.55897637, 23.51157724,  18.38159061,  9.595124633],  #0508
-        [0.03057529972,   0.1295910034,  0,      0.7309380706,      2.825866211,   20.00165241, 11.20656716,  37.67886144,  17.79334733],  #0509
-        [0.004303910525,  0.1597591627,  0,       1.892081162,      0.2499328084,  2.398389415, 1.347623951,  2.56613575,   1.210392739],  #0510
-        [0.01156696154,   0.1555434558,  0,           0,            0.02601621523, 0.2881683998,0.1869554559, 0.3154801618, 0.1296531209], #0511
-        [0,               0,             0,           0,            0.007465686211,0.3577478048,0.141733953,  0.06251310179,0.02990244852],#0512
-        [0.0006057657525, 0,             0,        1.831084046,     0.09590987963, 6.679941938, 1.788662735,  0.2817922135, 0.2917503357], #0601
-        [0,               0,             0,           0,            0.04139274314, 2.768780376, 1.209159568,  0.2800514078, 0.199078356],  #0602
-        [0.0002688951948, 0.01161171833, 0,           0,            0.07669710716, 4.706531409, 2.20000783,   0.4156842674, 0.3701568538], #0603
-        [0,               0,             0,           0,            0.01269038387, 0.906101222, 0.5277469272, 0.2900381297, 0.1212965326], #0604
-        [0,               0,    1.439852414,          0.5185850996, 0.03271482866, 1.538278822, 0.5003646529, 0.5761327888, 0.1839548517], #0605
-        [0.0002289815299, 0,             0,           0,            0.07392567287, 9.468284472, 2.031344345,  0.8833662405, 0.4560847896], #0606 
-        [0.01152033845,   0.05456938876, 2.754367238, 0.7123384017, 1.493670968,   140.2101506, 41.79583121,  11.83852237,  7.478854875],  #0607
-        [0.1156109857,    0.9710091859,  51.08467439, 8.476463172,  8.94710079,    296.8050981, 150.4007659,  61.23636967,  61.39827184],  #0608
-        [0.07381120421,   0.135965197,   10.63624374, 1.450272464,  13.61954826,   203.6360122, 134.377815,   149.3050091,  144.6995524],  #0609
-        [0.10147939,      1.176988747,   172.4601344, 10.24024945,  16.22324207,   325.9246929, 170.6029373,  128.5442044,  146.3158223],  #0610
-        [0.09631870388,   0.1390829623,  83.44298137, 2.175507604,  3.154565115,   24.21330009, 16.54773763,  20.75617836,  17.65354362],  #0611
-        [0.04977861735,   0,             77.75572501, 2.459015139,  0.4597587705,  1.822143369, 1.067463501,  1.759145707,  0.8901386385],  #0612
-        [0,               0,             25.0581161047431,0,0.0717128875373262,2.10617855881496,0.448007581672363,0.271208660077717,0.247028802548807],
-        [0.0065708533664452,0.0244116062368389,53.6120543556178,2.99222707533947,0.172587455049592,43.6673608419059,7.34628964063392,0.564848299858828,0.67868248403088],
-        [0.00271940148872365,0,0,0,0.102957863409372,18.3085566005758,3.45216731671468,0.399462915529398,0.403745501261559],
-        [0,0.0754356622714885,73.0124382738264,4.58058885387527,0.0937778237917119,16.8477605957563,1.87329103725705,0.29884299337516,0.189734576182922],
-        [0.00116925228787315,0,0,0,0.0228754349369444,3.22323024960873,1.18920005473688,0.518335232018755,0.202071636962712],
-        [0.000109801651054241,0,36.5076665107108,0,0.0378383127569034,2.98872476809825,1.12999718171297,0.426879895421266,0.200160042693292],
-        [0.00496302245400627,0.0814803286258948,0,0,0.28945276436865,27.9668173427171,7.2128984391177,2.7180644596883,1.27214293491172],
-        [0.00888808938442338,0.0556151868550316,8.56403593032662,0.621157203429698,0.72435986406719,25.740729476508,9.03603194855621,5.65300985548002,5.63872992221301],
-        [0.0165021777737508,0.428758140909768,45.9999483033953,7.66352510245057,2.36061189380357,51.2109575005853,27.8066772815666,23.7918976214963,16.1858982905269],
-        [0.0427816627789966,0.215552242005351,4.66475847983198,0.647742614641478,1.28595127079115,28.0074057333779,13.5171910940949,5.32003674154107,4.84246809701633],
-        [0.00344269198095622,0.0638965873941728,0,1.001541854182,0.358078699704191,3.97697764628239,5.47012770385998,1.11447982288956,0.693842313366061],
-        [0.00214018442474024,0,45.0699295125889,9.10947964646415,0.0572825565027349,1.88771473906934,1.10783485564791,0.202256349282455,0.140831709181671],
-        [0.00663320374448012,0,0,0,0.0657585093858398,5.55957171616481,1.32799229307798,0.288930366127094,0.270132764652573],
-        [0.000837628674551008,0,0,0,0.0839887609160862,5.82487085713106,1.42678641364716,0.264071287098785,0.26219306155179],
-        [0,0,0,0,0.0252249186719389,1.07576426748209,0.271612807169687,0.353215720044263,0.0890193678773371],
-        [0,0,0,0,0.0126678045325273,0.688565729499123,0.229321092265401,0.598133827158904,0.103131697301536],
-        [0.0400792698758897,0.0509839701140626,0,1.33812893588462,0.534321682188373,57.4090761927245,16.9809799092405,1.83949136856549,1.42387232664019],
-        [0.00028226774538045,0,0,0,0.187464053383936,26.3801346444412,5.5035177851645,1.8164334898192,0.702129008137505],
-        [0.000974389198508815,0.0219731149593941,2.58959800485401,0.295238603262341,0.46576741681144,27.2291229987364,8.91780972809038,9.30346824491763,2.65804737379426],
-        [0.0338267925964012,0.396581309468274,140.049965520327,15.002168271158,1.44199799282261,92.2406430031774,33.2381232643113,5.76822224674708,4.29957492078814],
-        [0.00819702428740284,0.0764675614899853,5.55726008038335,0.159112815330318,0.810020174845782,11.551780020724,6.07869850786907,6.45076985545509,3.49798494950208],
-        [0.00476448546052839,0,0,0,0.306652541616711,4.61862395369509,1.72779207018786,1.70023638424854,1.08944682237372],
-        [0.018407742121313,0.0814345684554234,9.57759068343622,0,0.0916406268661044,5.32737762290701,2.11460509118248,0.699262892889512,0.340465047341252],
-        [0,0,0,0,0.0177003103038301,1.97423491926442,0.434432428993856,0.212685458160114,0.0795643479926637],
-        [0,0.0627904145474762,17.8056588465717,6.7623483241394,0.192150179041589,35.8128704137066,5.13306575247179,0.580409431382856,0.53085267611242],
-        [0.000782590700475081,0,0,2.55005989617642,0.157439706811093,10.9779349113912,4.23625584206838,0.39488509505132,0.476394716553414],
-        [0,0.032052285181568,0,0,0.0207876986792137,3.84308287179817,0.484394148257528,0.465773447740933,0.122128965798133],
-        [0.00402072088737975,0,1.4211030185278,0,0.0714957437176223,20.2674158719046,1.83839613087055,1.26148396740856,0.404709617937457],
-        [0.0129004394186573,0.166639768457731,0,0.732270164180161,0.810914444507611,103.947852868187,21.7789215709401,1.70290381907173,1.1873316629337],
-        [0.0235216367578336,0.00333039977866643,52.1973581430224,7.56179571871965,1.19717795333237,103.302187548577,20.5574492736373,3.11250654894779,2.26392547448579],
-        [0.0119217300197482,0.327714618481511,349.340075983684,61.6239512286683,2.09392860127273,152.954374396254,52.5509558361387,15.8349025155426,10.2122809740522],
-        [0.0682416497688895,0.369131788586172,516.995458783299,42.2709199634209,7.05843473403051,176.965915212205,87.8920053652098,28.2048912020477,29.6796685475175],
-        [0.26074489980889,1.18320840498468,123.539114873043,24.7567694532329,14.4413720570869,331.740607602814,125.397369630147,131.366169280896,125.190362959438],
-        [0.095641005257619,0.0594185391575845,32.1090919624179,0.141372851559407,1.60292173750736,41.4195715463661,14.4825918843626,6.74015213826783,6.8178018074921],
-        [0.0309689830760065,0,9.03447441642539,3.0073764377212,0.533465491027819,10.4652226384753,4.44637287582397,2.28918652574057,1.76322926929396],
-        [0.000847655988466698,0.1208747510124,0,0,0.0534923225971646,0.695626644628736,0.166182996694984,0.469940791666896,0.149053247194794]
-    ]
+[0,0,0,0,0.0108498781348414,1.22855432024582,0,0.0969077465426447,0.0210241957859082],
+[0.000723701363987965,0.0284534225830103,0,0,0.00867827581122596,0.47989611965725,0,0.0921306087226664,0.0174264754413678],
+[0.000666518889608638,0.018114532669687,0,0,0.0274206570399425,1.6996759393692,0,0.16631655430539,0.141762521061446],
+[0,0,0,0,0.000496525828898452,0,0,0.203926233797778,0.0600478867712037],
+[0,0,0,0,0.00333222867631222,0,0,0.624106033420603,0.0468502908752454],
+[0,0,0,0,0.0150392474444058,0,0,0.845334559913058,0.0771936297073229],
+[0,0,0,0,0.0422939332170886,0,0,3.50065470598447,0.973875011533476],
+[0.000834070911636963,0,0,0,0.212243915309719,0,0,4.8246173250123,1.52725496687132],
+[0.101051511955853,0.0462472961087345,0,0,1.8114270379808,5.69899908815996,0,20.358064211498,9.87110642553906],
+[0.00785046028122776,0.510569502208876,1.59025006660042,0,0.266666346724007,3.10243888676,5.03480435011535,3.27062732633809,1.6976133176157],
+[0.0136222458683832,0.385594695095371,0.19317496225903,0,0.0378062066672267,0.0659272568730764,0.830994647262596,0.496832839089551,0.23209327370423],
+[0,0,0,0,0.00170915824281408,0,0,0.0299015073285745,0.0174555018174103],
+[0,0,15.2115164386224,0,0.0161236523736697,1.3611447059969,0,0.0368311944582608,0.050714969633715],
+[0,0,0,0,0.0139324796479899,1.03370882014546,0,0.132623030561815,0.0261915588586713],
+[0.000407000711675733,0,0,0,0.0236570027947281,0,0,0.281538672132072,0.06008535076898],
+[0,0,0,0,0.00700317830872144,0,0,0.301178968999451,0.0928122142809423],
+[0,0.0161826630045952,4.45902258232995,0,0.0147957705608856,0.201614749056692,8.32384095156759,0.422046130884118,0.112396727915912],
+[0,0.0313629051064516,0,0,0.00986689796890629,0,0,0.861582135784466,0.215952309093998],
+[0.0156596827406229,0,2.76855014587262,15.7321792353524,0.0662068440376179,5.71805448889954,44.2220056621059,4.39364135390085,1.37089095376722],
+[0.014632972103403,0.22108267941396,34.8778921243185,60.6905101936224,0.592178022106464,59.4589753714698,55.1121512413239,9.4144629519319,3.83095091863135],
+[0.03402547616476,0.099848195739937,4.07603142814126,52.5318887028186,1.80695931880759,36.4239300594058,8.10319011612701,19.7075873914226,11.5734379630736],
+[0.198057022316264,0.397862566191772,236.01773488623,1019.44453047616,5.06942587912486,192.000186522132,201.625858629478,45.3558141859141,25.1646124185204],
+[0.177219079249518,0.557656115693491,123.691136986205,0,2.50718888623825,59.8715822651971,44.0142895115659,20.6632509413109,13.9987295703776],
+[0.10913626242875,0.0238260502266346,111.069619024392,112.337059068535,0.767798210863137,5.70858959813158,4.02674871713065,2.5516630256553,2.23382548163888],
+[0,0,32.2179143129917,0,0.010444299351535,2.77154799628534,0,0.294629100824958,0.179954599354442],
+[0,0.0397285594946049,90.1166608052484,74.7389016386779,0.0235995851616688,0,0,0.160613207014141,0.0533146514606468],
+[0.00260845371071478,0,0,0,0.0230947997899837,6.896828131633,56.7978720550698,0.213406126905056,0.0293168104150939],
+[0,0.119701420989606,116.405868575485,41.1033203817621,0.0121924505613819,0.486508017251342,13.8104552484914,0.254560366304468,0.021193264340459],
+[0.0027283948344111,0,0,0,0.0100552569468707,0,0,0.510241761791043,0.114148022306262],
+[0,0.073040605783933,0,0,0.0205135671598086,0,0,0.414744096470137,0.0741087711225583],
+[0.0066552006884346,0,0,0,0.0302971917706908,0,0,1.30529534299931,0.267210427008031],
+[0,0,0,0,0.0111035625246172,0.991414492455567,0,4.19777401029126,0.552283587634392],
+[0.0125863946347922,0.614007827329739,78.2966117394763,488.44714919349,1.041474629677,472.967593925566,50.7894388612154,12.1903875755245,6.53492862109577],
+[0.0459856812203424,0.0427752622771001,24.4940530538744,0,0.807911581114611,254.689103282231,0,5.1407457590271,3.91764368547524],
+[0.00743514101916365,0.0855043135813262,0,0,0.505284547554073,127.721733545945,0,1.57166789969527,1.28641871985085],
+[0,0,108.221880744508,0,0.0706391622026469,44.8624264236177,0,0.277289757992151,0.300956252326116],
+[0.0103084619225405,0,0,0,0.0734991619189764,6.44616529879541,0,0.314695651971283,0.128076726336055],
+[0,0,0,0,0.0184965006644053,7.78103615879575,0,0.193629694582409,0.0860828406054982],
+[0.000482921197261336,0,0,0,0.0191163691792595,24.8507632337511,0,0.401569289468616,0.123931003422785],
+[0,0,0,0,0.00536017321648426,1.04586049604152,0,0.490577290422949,0.048850277761665],
+[0.00695677660317761,0,0,0,0.0287628731509632,0.860038361645764,0,1.72998772214873,0.117471938811663],
+[0.00043866379174562,0,0,0,0.0384234422843498,0,0,1.6820790955001,0.149658431485781],
+[0,0,0,0,0.0433539355391127,1.52540986375965,0,4.39803858429639,0.721254195970358],
+[0.00177929960994301,0,30.0824174816315,0,0.174649260214039,0,0,4.74624970562113,1.30195788344916],
+[0.000521162076665977,0,8.4669343872937,0,0.326784443348714,32.4184255364675,0,8.38241334929496,2.58282986606577],
+[0,0,0,0,0.138467912968838,16.0796655071735,0,2.63918136047879,1.71822126159008],
+[0,0.320848005336437,0,0,0.0379236851210525,36.6219396421734,0,0.953426376132423,0.687440130311727],
+[0,0,0,0,0.00612943569187199,0,0,0.270771518931653,0.0302306550850119],
+[0.00514434494195859,0,0,0,0.00500238645069039,0,0,0.281836208239256,0.0795033167723869],
+[0,0,0,0,0.00897109831718712,0.0458707418500243,0,0.102440156372849,0.0537130248513961],
+[0,0.0521633483018458,0,0,0.0100299095653368,0.0546112977865122,0,0.554502742010138,0.0509109473561587],
+[0.00114911474420365,0,0,0,0.0320756098055167,0,0,0.604592438128332,0.080542340520436],
+[0,0,0,0,0.0259846117415257,0.511396604096604,0,0.600802872734922,0.0852359307827915],
+[0.003746347769517,0,0,0,0.0414341244728417,0.607548458615974,0,1.45982737205361,0.220894494531161],
+[0.00345758545231901,0,0,0,0.0462807327841658,21.8874843571319,0,3.73057293221245,0.526294572881275],
+[0.0177860131332623,0,0,0,0.44090391398771,41.1626988038614,0,8.28162437694126,3.34629678760875],
+[0.273012577837704,0.774363765075521,0,0,2.56360130207843,68.3491884737734,0,16.9852682234479,14.0260185436816],
+[0.144087385709086,0.215264492626347,22.2575449610936,0,1.60096373004931,45.5833985775256,0,8.47439583226179,9.70020540037772],
+[0.0602011784228519,0.153959692567452,11.6158741315313,0,0.70718221419696,187.832261875061,0,3.73911587050949,3.96496427924926],
+[0.0013173166119335,0.114976839545752,0,0,0.0849965663442992,4.7565591914883,0,0.851941728462868,0.240604772711852]
+        ]
 
 #       in2in             in2dg          in2nf        in2pl         dg2dg          dg2nf        dg2pl         nf2nf         pl2pl
 INDO_PEAT = [
-        [0,               0,             0,           0,            18.2132396973583,109.61453371701, 54.0868107669118,408.726572762009,90.6551893996921], #0501
-        [0,               0,             0,           0,            56.6391537628736,231.340246787279,272.152085454495,677.638725149537,238.379371677876], #0502
-        [0,            0.82294531181905, 0,           0,            28.0010129434829,215.234572765821,130.019960522975,494.130383507705,109.923763745767], #0503
-        [0,               0,             0,           0,            1.30248196436994,10.9804429445114,12.1656111726976,12.146844302034, 3.73878268953857], #0504
-        [0,               0,             0,           0,            0.23931155771026,8.02618983166835,1.75753116806299,16.7409158856217,1.53351732614104], #0505
-        [0,               0,             0,           0,            5.07504764459719,91.1807201861616,20.9054967551746,274.185372437051,22.7490282675401], #0506
-        [0,               0,             0,           0,            1.99519103273836,52.0494560657791,8.29982161872361,79.4865275046815,15.7384149899228], #0507
-        [0.0102557891461718,0,           0,           0,            47.0622922241102,875.703899304423,326.268194388286,721.117214689971,150.201128396664], #0508
-        [0.0242309784734087,0,           0,           0,            37.8746889219643,79.8033869189937,52.4439998117259,428.251077416467,189.900830840733], #0509
-        [0,               0,             0,           0,            2.109967449675,  4.2330362076155, 2.40370086832141,21.167902049338, 12.944654384054],  #0510
-        [0,               0,             0,           0,          0.0106847527797957,0.100848494446217,0.0907540056389329,0.153789908618314,0.0975839796383151], #0511
-        [0,               0,             0,           0,      0.00729115363532433,0.542284654738693,0.652824922968682,0.698599334480409,0.105070778480429], #0512
-        [0,               0,             0,           0,            0.179876528379909,19.2665865435827,4.77307958706703,8.11667132346641,1.49187036098544], #0601
-        [0,               0,             0,           0,            0.997730526273808,24.3162864994941,8.07642193998495,28.5485584050548,5.7112247944742],  #0602
-        [0,           0.0528988348504998,0,           0,            4.57797657618547,117.452767502042,46.7772477333189,58.8583816176369,21.5642227076084],  #0603
-        [0,               0,             0,           0,            0.055185079865127,4.67566915356915,1.09948589323259,2.15859942864273,0.556066249011236],#0604
-        [0,      0.0572879499544666, 0.661976085879814,0,           0.485084451505118,26.8372891996102,6.07258566551129,12.2431450947935,2.57749277703421], #0605
-        [0,               0,             0,           0,            0.658779340565469,26.6415252292529,6.16963753630122,9.33328196690188,2.67756189090157], #0606
-        [0,               0,             0,           0,            14.6928555578135,549.083006358126,137.889934566665,194.021345731735,50.5811206828798],  #0607
-        [0,        0.617005528444354,495.099354261432,16.5099634830248,69.3939002421175,1116.2155764971,319.154212202503,952.073734626241,308.344999171801],#0608
-        [0.0571439562882872,0,           7.0267304698577,0,         68.0492193672383,749.910641140283,451.489777810784,1269.19447194687,1509.94968535963],  #0609
-        [0.0106443238680452,0.55485955657371,104.404773628935,0,    144.237025550819,1402.94281413795,739.518441987653,1688.84397977856,1996.95787964984],  #0610
-        [0,               0,             0,           0,            17.5108271358224,203.726429492907,113.408364968052,127.541925714991,105.05527459579],   #0611
-        [0.107368019862205,0,            0,           0,            0.0790389424280789,0.147806262131709,0,            2.3558288667481, 1.28020078169953],  #0612
-        [0,0,0,0,0.0723358711757417,3.74058430074513,3.32034744617522,2.94994889069608,0.854916739361423],
-        [0,0,0,0,1.88023914839571,147.23510302598,50.8341363566053,54.8901134100529,26.7483350386843],
-        [0,0,129.183170363608,0,4.18123196392851,100.512302852668,20.118675876144,34.3723938081242,13.4778448864661],
-        [0,0,0,0,0.23594731069286,3.84134433208557,9.27871366102974,3.61708572596368,0.993276985784852],
-        [0,0,0,0,0.13448788586231,7.31661919818908,1.4628823740864,1.14822706982749,0.704229531059278],
-        [0,0.0221556239184754,60.3197124644604,0,0.325491298925383,12.5758155672551,8.90636955498683,2.05732614264823,0.6433846337841],
-        [0,0,0,0,0.769203291649227,46.1686452762059,18.3697527016483,10.2432201901668,3.64204551913712],
-        [0,0,120.132503989566,0,3.39929949041422,69.2503411521096,19.1020097239623,28.9559742951198,11.8167724292755],
-        [0.0301198030203287,0,0,0,4.00607836817226,61.8868134966581,13.7082843507254,42.607212948104,35.0269654945277],
-        [0,0,0,0,2.39397628547353,25.4534039714512,24.9613804944817,7.59396823065581,15.180020622492],
-        [0,0,0,0,0.0605253707366589,1.67924420587859,1.3592340665268,1.04670573843244,0.237300131923187],
-        [0,0,0,0,0.0324784631690791,1.28401029331149,0.0636568148038252,1.27786800624976,0.408975822445238],
-        [0,0,191.687280486297,0,0.825900399319296,21.3241791985479,4.66456607090096,5.16325797634719,2.79650515450632],
-        [0,0,38.8182667561978,47.3033742065435,1.53666496090126,28.8963274183433,20.4808216935557,28.6758201011314,9.48143701557189],
-        [0,0,0,0,0.0666775219662703,0.335075282492559,0.146802551869162,0.123690888373475,0.382872685183522],
-        [0,0,0,0,0.0643826593471904,0.604693739638036,0.334723263605005,0.815891500262122,0.319638376140879],
-        [0,0.120796199648963,20.0068857188295,7.82123200020578,5.30938846433477,135.776603382269,41.8678786378746,9.93818166149538,17.3677459624522],
-        [0,0,0,0,0.751666537252937,23.9052857338367,15.0383099194456,6.31553425226405,5.83765875006331],
-        [0,0,0,0,1.52176853651092,29.1751070000777,21.6701836969315,24.0205100428164,10.1505836763036],
-        [0,54.5623090050643,7702.81083108426,420.613917769436,11.3756633410766,373.466880962715,145.844515250343,43.5658791568793,35.8374478143038],
-        [0,0.474792037822518,78.6374908194956,3.03455313149265,0.376357871453878,9.83765394047907,3.00789113800857,2.6440353926796,3.06893009343823],
-        [0,0,0,0,0.0676644076753401,2.26036599704742,0.908886098739516,0.405666752988492,0.76852030945324],
-        [0,0,0,0,0.147447146126464,3.67235470715147,1.1499030564214,0.521782542329858,0.413243255168546],
-        [0,0,140.313911968139,0,0.130752409288448,4.64297189001867,1.70364931353427,0.68030118087127,0.469784712797238],
-        [0,0.360788272742241,104.964745606418,2.97785651489446,4.19377084101113,67.6495727734464,41.8929594334404,86.1421670002539,24.2284888435449],
-        [0.0649057256334133,2.22528024413936,0,0,6.01183954925856,63.5978723837795,49.3516101556429,43.4554498452634,16.7347289165415],
-        [0,0,0,0,0.059926851897974,0.343868544826821,0.757903026402775,0.114628534305607,0.455712412540724],
-        [0,0.262500304784759,25.0435650361494,0,0.600649686035159,12.5773517168707,4.7689512481246,0.603336857408626,1.17653423456],
-        [0,0.0319207297514729,2.74917493236751,0.511466337566799,3.79371827217201,150.68080966399,30.9915049025727,35.9172396226052,8.87142962524767],
-        [0,33.9092587395492,2375.93740276305,319.237652533544,12.4275044385301,255.722296008847,101.974227654024,85.2565600256038,27.1414878061632],
-        [0.113526281214821,50.2585896529415,10046.5224568511,574.694010733039,24.764272410371,736.583049702649,261.766376685603,203.157617578176,63.0895256852022],
-        [0.0286368062605177,23.5026146561504,6934.25705052477,916.444787758586,66.6539365261531,1131.48603645134,342.458034886585,497.643413075423,287.052740958333],
-        [0.101537031970425,0,0,0,206.256434150225,1864.12787787629,615.432516951555,1510.04916903109,1343.83006572323],
-        [0,0.483786239872376,40.0635783310917,7.45357141066961,4.12242336953539,31.119406648712,22.4191127441765,23.2723816013088,44.0354453826243],
-        [0,0,0,0,0.394843414190704,8.71985299215791,5.28431651015326,1.68959483917285,3.58464834093651],
-        [0,0,0,0,0.103485852719142,1.69037562044916,0.899809467963256,0.412576052205806,0.25463013506765]
-    ]
+[0,0,0,0,23.8670360668649,92.3827366554702,14.7702326433228,311.414614765992,54.9622657913549],
+[0,0,0,0,67.2641076223561,147.723134867761,183.20034774587,523.114123086286,162.462703935537],
+[0,1.96494332699923,0,0,28.0031253168687,171.334184629627,53.5928709096323,439.016694904908,62.6176045469844],
+[0,0,0,0,1.44342749966081,6.08463533358866,1.58771778982382,19.4346055994983,2.27670414122539],
+[0,0,0,0,0.0979515563614474,5.88487270078673,0.529553966348275,14.0162212348648,0.708019420278442],
+[0,0,0,0,2.10181106620135,53.6792630477818,0.736434527775246,262.754142284337,8.60833362702959],
+[0,0,0,0,2.23216804265124,37.6717739271777,0.773230678624197,72.6728843675703,10.5907868515206],
+[0,0,0,0,38.8260136407024,585.252844112274,32.3543234358163,919.196172946995,82.4772905036023],
+[0,0,0,0,39.6571704648135,71.5230676717296,1.5494967661016,489.507797474714,176.527621025794],
+[0,0,0,0,1.99766580267307,2.91283000180805,3.84125606677836,17.282396567388,10.6590432129787],
+[0,0,0,0,0.0174969304278157,0.0993583128614679,0.411440642428998,0.309733558781582,0.0629163687964067],
+[0,0,0,0,0.0100825331327301,0.447105282749952,0.776019821937161,0.60825389096061,0.0443273160626854],
+[0,0,0,0,0.306216790416655,9.43601731182056,5.06180676814222,11.4158918894454,0.692449797291723],
+[0,0,0,0,1.09093227676467,19.3429554755391,2.88866875229204,28.3336319460971,2.71498056439787],
+[0,0.171520815697716,0,0,5.81764924319898,104.623465043981,16.1455417253062,56.1419672490074,11.4889404093333],
+[0,0,0,0,0.0660006007921737,3.75998933247166,0.333361714629344,2.59940271337565,0.306518206719038],
+[0,0,0,0,0.3413090218932,16.4738007696443,4.91286743914283,18.1208104860368,0.672300726317515],
+[0,0,0,0,0.570859422552345,22.9735614166934,4.66562112196273,8.59141973370807,1.1806053618147],
+[0,0,0,0,12.7017647283927,489.75027588554,42.5827258393373,252.406759492149,28.9236714390206],
+[0,1.15820298533004,579.711523172439,0,77.5110221850843,875.214585318231,377.736626912491,1003.82902841113,286.371657777981],
+[0.168529161387246,0,0,0,77.5031723595165,567.039008655115,598.293259008238,1413.81445404943,1337.94102207127],
+[0,0,0,0,162.321797115432,1257.80203109507,606.655227618472,1427.88333594959,1737.7989863468],
+[0,0,0,0,22.2397002701113,201.394108165376,6.47003587543486,98.7115040424649,105.019796805969],
+[0,0,0,0,0.197995027810691,0.297832919084553,0.125138458611184,1.78253080528272,0.86693085234329],
+[0,0,0,0,0.222923365980897,5.13425940089017,0.203067751635525,1.35781097182106,0.573380731452868],
+[0,0,0,0,2.52943779350056,145.564060078722,32.8593052264058,47.1815062632411,18.2158571605059],
+[0,0,0,0,1.22946705521957,117.482048565994,19.281686864361,21.9008692238754,10.2842996310946],
+[0,0,0,0,0.354330447397412,18.0646627035298,20.125512341282,2.71741669120836,0.914613791254021],
+[0,0,0,0,0.18866931662371,7.34857109549986,0.423377738210897,1.24220555276814,0.426986870350645],
+[0,0.0478920527871059,198.086377414808,0,0.40573613499294,14.3902036861908,1.31099903502535,1.39842649624408,0.504474560698703],
+[0,0,0,0,1.12229365088256,61.2014648009195,2.02068509660208,16.289882579228,2.37217889657222],
+[0,0,64.8187691877834,0,4.70588849470696,77.0833568959159,4.96263869608985,25.8586022645505,10.1618286240365],
+[0,0,0,0,4.15891956871774,54.9775864434201,0.249781492848221,95.6933004792504,40.5416126870126],
+[0,0,0,0,2.78913817192601,37.1625692961837,0.380095614474158,19.2128217123483,15.2044777800525],
+[0,0,0,0,0.0744712393923458,1.71237431746084,0.132630885279819,0.190967786553777,0.430068260764278],
+[0,0,0,0,0,0.767664931966382,0.0486328066904822,0.596901294994933,0.357103791531336],
+[0,0,0,0,0.9132852083891,20.3691361766511,0.321940080242562,4.71244903092318,2.18268597936098],
+[0,0,334.970545150121,0,1.99409946266867,27.6944712907169,11.2072788832914,23.193349708262,6.01804627108865],
+[0,0,0,0,0.0433800642994144,0.44200158710854,0,0.521112618791589,0.162743773292768],
+[0,0,0,0,0.028412756546955,0.51551049187627,2.75871900820502,0.754889833821711,0.315863896098328],
+[0,0.261115552012543,48.0489627056877,0,7.02190820216502,125.690215053382,21.6519429979393,14.4859073205552,12.359665018205],
+[0,0,0,0,0.879038668787939,31.503718664042,15.7183717454963,4.43809523690569,4.24813240584689],
+[0,0,21.2589964841028,0,1.23667517493491,29.6049430386443,20.9055025078791,29.4217591019819,6.30917147013855],
+[0,121.785316650512,8708.90001432863,0,12.4550196813049,380.383127507905,29.5062240206663,37.8672902547754,25.3838770965065],
+[0.0562822133458923,1.02632024378071,89.8779536597949,0,0.707849256842813,5.12988558551016,1.12490361571696,15.1682010575454,4.01288722398543],
+[0,0,0,0,0.119151414595996,2.20003283947541,0.418445240250941,1.08295881137526,0.997246417700801],
+[0,0,0,0,0.142432600199364,3.75460039121704,0,0.30474458415069,0.397245437899327],
+[0,0,0,0,0.139033286512088,6.31614225528952,0,0.550393810889457,0.351352667440837],
+[0,1.81108692975402,467.31472318235,0,4.59072279261821,89.0087475106968,3.7193815300382,73.7178611193649,16.8234298002061],
+[0.186593869491055,1.99105987743062,37.6224340325068,0,6.90844615932732,66.3393081442403,28.9204616499899,38.1740572005324,9.92204636936513],
+[0,0,0,0,0.0759814828557231,0.468293582820688,0.461018813471652,0.0943197976631189,0.352623677917389],
+[0,0.567426062977756,44.4605551238034,0,0.410429678316362,15.7230551076944,2.76578510552782,0.249801860460742,1.06530035037552],
+[0,0.237361742725757,14.9856036112105,0,2.8491632777029,131.090936913721,22.1279018472772,40.9357904540189,5.92624633677451],
+[0,64.1194680291188,4754.9572963346,659.20423484312,11.124091720895,275.778753667843,35.0271156766769,86.6351548717039,16.4458599078633],
+[0.47039867660324,108.800552014029,15480.5856338665,63.1121894186458,30.2991874716429,629.637009083804,74.379986891198,297.729144672351,66.4743070619919],
+[0.364048810189914,42.0460801030249,15957.1367876977,525.002781069699,86.1942162838367,1081.75328089742,78.5417650960616,478.564686708423,254.967246300124],
+[0,0,0,0,243.092871300575,1839.95743611188,165.847468640285,1768.03707814613,1406.04625714769],
+[0,0.522881148061311,91.5805527169861,18.8542504469889,3.84111141698323,50.9415085070728,15.5921509966331,25.9875449682194,39.2549380325232],
+[0,0,0,0,0.497848461324704,5.43029140755172,1.79355776274143,1.88649495039738,3.36110032088928],
+[0,0,0,0,0.142335759582442,1.27578325505979,1.43758162553096,0.402922029718645,0.166389277884753]
+        ]
        
 
 #       in2in        in2dg        in2nf        in2pl         dg2dg          dg2nf        dg2pl         nf2nf         pl2pl
 KALI_NONPEAT = [
-        [0,         0,            0,           0,            0.331708585832679,7.6547494012543,4.90830888303383,5.2747832367022,1.09206173767653],
-        [0,         0,            0,           0,            0.215073067939497,7.27663960152063,5.96496494755527,3.0454389192096,0.489897584902251],
-        [0,         0,            0,           0,            0.618224416352075,13.3588143009681,3.93728446862657,8.34821441354794,1.74280515998342],
-        [0,         0,            0,           0,            0.00363645498250971,0.426874660909499,0.106709575381463,0.251657803229281,0.0471600052034655],
-        [0,         0,            0,           0,            0.00156198148849879,0.186261830532257,0.224519072156636,0.252165819427254,0.0732781885814704],
-        [0,         0,            0,           0,            0.00806597300551262,0.523273411752145,0.113354304431444,1.27700046413552,0.239561251335556],
-        [0.000259197884551638,0,  0,           0,            0.0815766185150368,3.02282212976471,2.32133233657131,3.39449754250721,1.249469287783],
-        [0.012710008761238,0.10384294420103,0, 0.929722996233893,1.36738692567232,9.46563880663533,9.88021023302174,52.5046276193902,9.68732044350943],
-        [0.0108767860071335,0.193267820425399, 0, 0,         4.65574590121618,25.3526638001514,17.554232836271,203.984189274514,41.4084243557172],
-        [0,         0,            0,           0,            0.32526194585202,3.82057498646759,1.81602951747791,4.77565554075695,1.51285625208343],
-        [0,         0,            0,           0,            0.0129745918531377,0.122556863837429,0.069501387339188,0.11010777207204,0.0713953451474321],
-        [0,         0,            0,           0,            0,             0.0540968338986586,0,0.0380673506682151,0.0142825880375858],
-        [0,         0,            0,           0,            0.0440875639605659,2.68052259061789,1.16085391769174,0.492624733910028,0.263238658023815],
-        [0,         0,            0,           0,            0.000858712717207488,0.291604086145761,0.451402109006026,0.0559426800025092,0.129771295600874],
-        [0,         0,            0,           0,            0.0149261768891761,2.13641400566909,0.919352545116908,0.317444793259908,0.289998615305396],
-        [0,         0,            0,           0,            0.0245496244668265,0.65958492764525,0.269614143692581,0.202708273609225,0.100717626318109],
-        [0,         0,            0,           0,            0.011368003414185,1.12191676090153,0.222490835738234,0.833799053253443,0.0949154171637785],
-        [0,         0,            0,           0,            0.0142007641564605,0.668892896873828,0.281469459033298,0.143941789393492,0.0868427141131412],
-        [0.00161208069670569,0,   0,           0,            1.40965284596381,69.447749177361,50.2623472577231,32.105365546414,9.34546822399754],
-        [0.148441205635251,1.81658695653405, 0, 27.7450525154948,21.8646799124013,346.891934877,227.317221360751,228.475712221591,111.981392981732],
-        [0.144272759808098,0.487763658583927,  58.0557515095229,0,38.3481482298139,348.835741563301,277.246118103814,668.922643669564,260.533533564823],
-        [0.00122992400422333,4.18295496292328, 40.0744927980014,11.6164023194436,42.456470198678,544.221724780914,343.623415669019,500.406473346507,278.538486731046],
-        [0,         0,           10.6188447957345,0,         5.27847894236326,38.7737350056544,29.8700291906377,15.6514858297297,22.7540153000422],
-        [0,         0,           0,            0,            0.0313534696235369,1.90939068631276,0.80006511710685,0.856752212837657,0.527136108760286],
-        [0,0,0,0,0.0389925031160059,2.11283206236656,0.358544316682982,0.119920870737888,0.123470033075423],
-        [0,0,0,0,0.0332120786114234,57.1802426893722,11.0456274795087,0.553089554734944,0.452510334245007],
-        [0,0,0,0,0.103569541658204,17.8652090396758,3.63307273747715,0.718729878702682,0.281013414092415],
-        [0,0,0,0,0.269191353518451,30.9923046880638,3.39651974757785,0.517090677322787,0.397228867960352],
-        [0,0,0,0,0.0311584234562878,5.27633449900432,2.20649702286802,0.586654763673802,0.15863451817111],
-        [0,0,0,0,0.0352387207385936,3.93600194272133,1.10230954044011,0.215813786003933,0.125978748612581],
-        [0,0,0,0,0.099051530710332,24.4208243552369,4.79442683703099,3.91080266977585,0.399874408943448],
-        [0.0231375657340265,0.0816188821283256,0.858267328055342,0,1.62816179713991,34.6416140257195,11.5599210351187,6.44486109631061,4.94393173110926],
-        [0.0246239698193139,0.182468839964764,0,0,3.61539293722958,41.3165488379061,27.2476254127336,49.8288656804531,12.8872518305114],
-        [0.0117556256120776,0,0,0,2.33285722462834,32.5485401468867,15.364165943367,9.68552099326974,6.08357704968931],
-        [0,0,0,0,0.114057040882937,1.59651035110171,0.779660623935748,0.848559897007637,0.368991251342332],
-        [0,0,0,0,0.00477068037764872,0,0.259384121243233,0.257799265255562,0.0531219487353313],
-        [0,0,0,0,0.0950442223112262,8.73664539875666,0.945676318025546,0.688931642686549,0.437298187694055],
-        [0,0,0,0,0.0374363344703509,4.75115880096065,1.03799155123562,0.412840032679119,0.166183338757104],
-        [0,0,0,0,0.0128982522905629,0.811360966485745,0,0.415759439530748,0.0224920614940538],
-        [0,0,0,0,0.0155427917394885,0.871172893132008,0.136331693748036,0.779122992286394,0.0902191713942462],
-        [0,0,0,0,0.258144762016976,76.6084330503361,10.5824174562185,1.41904203846375,0.866932529200418],
-        [0,0,0,0,0.0949012738705574,27.3240802071186,2.31300083307507,0.887737276899099,0.749825044276841],
-        [0,0,0,0,0.0493165680402037,9.42498939975933,1.43696749115335,1.03395814358232,0.510388703764657],
-        [0.0118016061370957,0.305015202901854,0,0,0.530192445170036,11.8992194197953,5.84516305530259,2.20001837441661,1.50675276193076],
-        [0.0264302876794978,0.0544118927132689,0,0,1.37460007965815,3.48721399665192,5.84854127232822,9.65507034763892,4.16210599546483],
-        [0.0157901851428615,0,0,0,0.574604387343879,6.13870943594222,1.92350003769148,0.861243085099393,1.08203764988578],
-        [0,0,0,0,0.0685237235066538,6.65358532744053,0.732987923636929,0.196555810208452,0.148917667752853],
-        [0,0,0,0,0.0249656739317816,0,0,0.0495614271341359,0.0731622887850579],
-        [0,0,0,0,0.00953367285991816,0.71906174881166,0,0.238462684112445,0.0646632230458932],
-        [0,0,0,0,0.0193805681533865,0.390925183421787,0.200293517334457,0.263588381140757,0.102132140051266],
-        [0,0,0,0,0.0360630264160153,5.57255555894379,0.356041403778089,0.486482283891656,0.0906814140847393],
-        [0,0,0,0,0.0590214487405442,23.2674011532134,0.909080015970814,0.786235661168982,0.187038204962713],
-        [0,0,0,0,0.229220277211867,19.0908300559576,3.94704647901161,2.45815264010977,0.61014532655704],
-        [0,0,0,0,1.07191031891307,50.7930693355916,14.5920359705874,3.07937525658389,2.8382716570187],
-        [0.00169691769985076,0,0,0.0997917255887856,3.16081762370568,140.34705043862,50.4119393384723,60.0330454807202,16.6427668870048],
-        [0.195340016794302,1.37471559543758,73.8152110435356,15.2173574834603,17.8951150000818,233.191868973288,117.613731677691,118.821420293578,65.7043668887283],
-        [0.279546599699191,2.77158122019759,876.076607642251,70.6729487168584,42.6185462405203,619.341487989074,277.125523437496,851.391895271105,316.587611926378],
-        [0,0,0,0,2.05547746660841,66.0004005401633,24.5951012261866,11.3866096924081,8.86922388123376],
-        [0,0,0,0,0.233396482945797,4.98211086799232,1.36249465520963,1.58108862261266,0.82599248012883],
-        [0,0,0,0,0.0183327340360962,1.0998122764632,0.118546290765401,0.0595904095477636,0.106953962846184]
+[0,0,0,0,0.141898395770196,5.04137937066207,0,8.43633142092599,0.929263023452826],
+[0,0,0,0,0.243136385289838,6.75179617841169,0,4.80809423480058,0.533540733361768],
+[0,0,0,0,0.163535291617904,17.9619683545011,0,14.2369306182066,1.16238776939075],
+[0,0,0,0,0.0061003704611507,0.437702073509896,0,0.220618305791912,0.0383000513537196],
+[0,0,0,0,0.00419868683304416,0.557994690766836,0,0.335847064733673,0.0461618287808865],
+[0,0,0,0,0.00380437309967666,0.23750730136304,0.878131839053386,1.42692523611751,0.223658747290698],
+[0.00048812800946021,0,0,0,0.0370704404462311,4.02106896990643,0.135407476927308,2.99117784028273,1.10414667028501],
+[0.0217950512816821,0.075668688499598,0,0,0.961712980653188,5.43320830304711,0.782294109558142,52.938523503534,6.50505979854233],
+[0.0134675500619511,0.176134005663868,0,0,3.39288697189553,21.5084764722804,113.114151110409,165.459281281018,24.4042233043091],
+[0,0,0,0,0.222288401033585,3.97079894893773,1.50689990292372,3.34257083863134,1.14159535094577],
+[0,0,0,0,0.0146334396140677,0.241544555477277,0,0.124870626181157,0.0672749853829141],
+[0,0,0,0,0,0.0190337912283179,0.226851932703073,0.052296539607846,0.0165990107881163],
+[0,0,0,0,0.0189501489571428,2.72374327564718,5.72052541774091,0.739234098080591,0.265773020555465],
+[0,0,0,0,0.000751582541533638,0.656762185373764,1.19211771265402,0.113298457079295,0.11918256513585],
+[0,0,0,0,0.00400268495288158,2.53751207485317,13.1615936958364,0.314640930273736,0.276541053683804],
+[0,0,0,0,0.0121301012680546,0.774440065083017,3.13809336910649,0.348025543915819,0.0819726655147324],
+[0,0,0,0,0.00458392009912198,1.18961966743519,1.90837443092229,1.61378824073801,0.0666380322601847],
+[0,0,0,0,0.0115073753942004,1.42047933619463,0.642525842121486,0.202744742030538,0.0781698674160583],
+[0.00124754031345457,0,0,0,0.46616006498106,54.0840898947675,971.620853797119,16.6979714228122,7.46682612459072],
+[0.201120989375111,2.35123973731279,0,0,17.9703908349688,367.547697179878,1216.59628609166,196.895478424134,99.491204307053],
+[0.159606112367788,0.9361322812181,319.456798037224,0,20.523022843723,409.859858419373,646.171463159044,609.08222478095,195.641801327091],
+[0.0227209514575995,6.72350882219362,31.0659200464728,0,22.7028024047767,466.973633160424,868.093378389013,466.74272628081,180.880278613975],
+[0.00222531507291861,0.020976058788183,0,0,2.88890575533954,45.4938859289326,30.520111474812,14.0256143314826,15.7203039818291],
+[0,0,0,0,0.0364691516528197,2.8164517718684,5.45211647241814,1.07014219455144,0.480802329022784],
+[0,0,0,0,0.0175342321069389,2.68625781592241,0,0.151539092349077,0.126937563322665],
+[0,0,0,0,0.0355933714784958,51.0893560586212,77.2674314920651,2.91458166277248,0.169819144672647],
+[0,0,0,0,0.0211431210757555,17.3936021819163,8.58699972730376,1.13444905462082,0.188171827640688],
+[0,0,0,0,0.0514172344420786,18.7076542309554,12.140124729372,0.873642643549419,0.286869163972301],
+[0,0,0,0,0.0179294102229564,6.2607092380834,8.15715703207007,0.996151024873974,0.122791268531709],
+[0,0,0,0,0.0188763991640117,4.62431405542575,10.5874894947598,0.419912135276066,0.115905799171654],
+[0,0,0,0,0.0834307329295962,15.9644031511164,4.09055639859679,0.397106303039652,0.296254857696596],
+[0.0241679002595746,0.0907764603094821,0,0,1.71488943190185,14.3548850013393,22.6225198138113,5.69261552259598,4.62291499505739],
+[0.0314872792560485,0.107537119519053,0,0,3.8755675688935,39.9419573505136,1.39806525994032,17.1688848575286,10.0957923594863],
+[0,0,0,0,2.41133443105714,32.5533994813153,6.95696843842552,5.94692684960439,4.80625317434818],
+[0,0,0,0,0.116115724442259,1.62949967965776,0,0.925525504873541,0.369669557709035],
+[0,0,0,0,0.00489542081317865,0.301987083625561,0,0.242017899539541,0.0672801905708212],
+[0,0,0,0,0.0644978487957514,4.64709756311862,0,0.608608521977493,0.368036323216884],
+[0,0,0,0,0.0182688587346885,5.6259431747717,0,0.586320857714679,0.12230956629636],
+[0,0,0,0,0.00754223845257115,0.604040574737115,0,0.640785903918461,0.0264820833533872],
+[0,0,0,0,0.00729464515687185,0.675205915733631,1.39496870391927,1.05452700262177,0.0713917322833523],
+[0,0,0,0,0.0979291418054794,53.7305487738603,0.980948204583571,1.31849114125819,0.427650258793701],
+[0,0,0,0,0.0825361081416504,10.3495917872069,0,1.44588306166675,0.776600272123579],
+[0,0,0,0,0.034204128722632,11.655541544471,0,1.59053802548526,0.406299704727385],
+[0.0111433310088932,0.437337154364124,0,0,0.371336244468295,7.24309405015358,4.06753232684012,2.14450178672301,1.48465221147588],
+[0.0197659202820391,0.0754666438372122,0,0,1.60472755820661,3.5614927572157,0.167686036247238,3.17630797153937,4.16291834253167],
+[0.0315434878795527,0,0,0,0.635278277485274,9.62612828193102,1.7142505285494,0.537233898435375,0.944115330104383],
+[0,0,0,0,0.0536291773245414,6.2325809219733,0,0.201854684210138,0.166476252048662],
+[0,0,0,0,0.0189660247388035,0,0,0.163343902483098,0.0388901760857501],
+[0,0,0,0,0.00705875183156401,0.738735032285369,0,0.532083558015053,0.06043675721098],
+[0,0,0,0,0.0107783181783702,0.424578050880922,0,0.353150741674759,0.101635993170785],
+[0.0113217886275355,0,0,0,0.0580731343175588,9.8931102769011,0,0.695190628827643,0.0453352438973346],
+[0,0,0,0,0.0319423755713694,18.0568788751163,0,1.18163158196641,0.189464918700653],
+[0,0,0,0,0.0597546246022599,13.8143810032527,0,1.97725309786706,0.290901022094608],
+[0,0,0,0,0.851894800488644,53.6730186667157,0,2.15912491130462,2.07423089189103],
+[0.00146995720057281,0,0,0,2.37069785795754,113.496321644761,5.32023672481965,29.2315603020836,9.87770691097881],
+[0.205664727612888,1.31762502904669,676.510609918428,0,13.016260316238,182.440645716603,0.898400390153746,109.179978504,49.3470946459444],
+[0.356900956816167,4.31510345254784,3300.14328799671,0,28.0518169558918,541.017607261504,101.700921621849,691.500291336522,159.97157646753],
+[0,0,0,0,1.592091854963,68.6871281138071,0,6.79863143146074,7.76714667562518],
+[0,0,0,0,0.231589855873243,5.79023943680366,0,0.432189247162947,0.676276844685908],
+[0,0,0,0,0.015194694888262,1.49169524765403,0,0.0380094377470179,0.108054091996207]
     ] 
 
 
 #       in2in        in2dg        in2nf        in2pl         dg2dg          dg2nf          dg2pl          nf2nf          pl2pl
 KALI_PEAT = [
-        [0,          0   ,        0   ,        0   ,         0.433665158001377,0,          1.38972605328482,22.2061519491548,2.01817333149979],
-        [0,          0   ,        0   ,        0   ,         0.112891156449748,1.21382666233261,1.32999137031361,15.2450263876597,1.82408922806392],
-        [0,          0   ,        0   ,        0   ,         0.127598948027437,0.0987751272055991,0,      9.48381896983098,2.17477877979208],
-        [0,          0   ,        0   ,        0   ,         0.00362049486677976,0,        0.159628673426899,2.45429082882845,0.125386277210032],
-        [0,          0   ,        0   ,        0   ,         0.000227069219684983,0,       0.0436031040592018,22.8712989544282,0.881792025627216],
-        [0,          0   ,        0   ,        0   ,         0.0535954755375268,0.0963310697319351,0.140704347947672,2.37048058838684,0.343352925878885],
-        [0,          0   ,        0   ,        0   ,         0.814162057515152,19.6284388597542,2.75767007160008,130.396295127392,13.9199765460984],
-        [0,          0   ,        0   ,        0   ,         25.8184335056146,84.0274149610757,157.447598679046,488.008582931273,134.288321339896],
-        [0,          0   ,        0   ,        0   ,         84.9685461396138,150.921419195029,137.772357978589,1627.44350031085,562.353796003517],
-        [0,          0   ,        0   ,        0   ,         4.7658069601906,10.1076911315244,7.5031498379854,83.856031279843,38.8033233290556],
-        [0,          0   ,        0   ,        0   ,         0.00840238451448946,0.13393321888802,0,      0.161133568246952,0.141488096998992],
-        [0,          0   ,        0   ,        0   ,         0,0,0,0,0],
-        [0,          0   ,        0   ,        0   ,         0.143113238806654,4.63206749661364,0.561717672568723,5.79442711720859,0.603043219111233],
-        [0,          0   ,        0   ,        0   ,         0.0335522608309769,0.599349138444922,0.376704586658762,1.28265771916258,0.435044192268563],
-        [0,          0   ,        0   ,        0   ,         0.206367987975356,17.8181317841393,12.3679497616779,5.92782108513566,2.21099808554703],
-        [0,          0   ,        0   ,        0   ,         0.0254643217013386,2.83711306018628,0.761776060064733,0.352861094483959,0.217460627438674],
-        [0,          0   ,        0   ,        0   ,         0,             1.28696292874153,0.661192281515994,1.3299370902779,0.590931714798763],
-        [0,          0   ,        0   ,        0   ,         0.0158700386942943,2.64184289458993,0.881851106462896,1.3179999657664,0.38424648057064],
-        [0,          0   ,        0   ,        0   ,         8.38525277835691,261.571931351463,69.1354433626341,131.567861576733,43.5264266433777],
-        [0,          0   ,        0   ,        0   ,         87.8270818110879,1173.50791892699,539.748375140782,1202.42844057038,543.562333877084],
-        [0,          0   ,        0   ,        0   ,         140.753222761897,1573.40038516807,1474.12688529181,2897.37609463108,1941.17873144483],
-        [0,          0   ,        0   ,        0   ,         310.089336243454,3427.5662101529,2647.61208676785,3005.41510950626,2671.98523515487],
-        [0,          0   ,        0   ,        0   ,         39.2901098422425,515.132072616247,422.563895914028,277.253837010487,193.960584413242],
-        [0,          0   ,        0   ,        0   ,         0.0616806676253939,0.300274470650153,0,      7.848734758087,1.62145910430889],
-        [0,0,0,0,0,0,0.274800407668905,1.46020764525838,0.643117271674052],
-        [0,0,0,0,0.162099835710594,63.2633816379855,4.46858724936124,10.2290448803395,2.6847685370921],
-        [0,0,0,0,0.0710666272986206,6.2407222832204,1.06133773708072,3.80695550419322,1.52249504795561],
-        [0,0,0,0,0,4.30180001133144,2.10464173478639,0.736595144491012,0.0332799794353341],
-        [0,0,0,0,0.0356058366496388,2.53016036536082,0.228529556268072,1.78336888896235,0.810037735015771],
-        [0,0,0,0,0,0.616179936743747,0.0630558308465809,0,0.155560392914003],
-        [0,0,0,0,0.220648316015382,11.8315740114303,6.57301243906203,1.59967477702075,2.61772477097229],
-        [0,0,0,0,3.49252691107105,126.719350669255,38.1909422683363,22.9082977981213,18.5932955780407],
-        [0,0,0,0,4.70233964593438,70.2204423847213,12.870611551572,133.598407508535,74.4658171570316],
-        [0,0,0,0,2.68329981900472,36.8599553874876,51.3309051133081,20.7771315979156,25.1816412628752],
-        [0,0,0,0,0,2.17470743488959,3.34419395971846,2.47904388661548,0.230460251923631],
-        [0,0,0,0,0.038000247178471,0.459957152514711,0,1.25608453787942,0.106496735203622],
-        [0,0,0,0,0.59422988848948,29.8640637193459,11.8206107138692,4.26428821990986,3.9814052957441],
-        [0,0,0,0,0,0.301657252524547,0.261398495607598,0,0.0421971405225927],
-        [0,0,0,0,0,0.314131085167569,0,0,0.208173353444344],
-        [0,0,0,0,0.0495546128433606,0.293787294029423,0,0.66474764524014,0.141969600022685],
-        [0,0,0,0,6.46384551094527,157.419916883411,65.1876044389537,4.91898334528949,21.0212073223991],
-        [0,0,0,0,0.832421875186718,47.5333295517862,17.2959804139352,2.86533799836937,5.98689707357843],
-        [0,0,0,0,0.122331908939082,10.6435195631203,4.26858815097965,1.8209975162873,0.956837158583232],
-        [0,0,0,0,0.874931950187703,39.5578575816762,5.18484028989048,5.49418384341466,3.82161765968895],
-        [0,0,0,0,0.46702879950337,21.0716118431833,7.4602926621836,7.07043375372034,6.12350542317532],
-        [0,0,0,0,0.0513588773865247,2.65066545254047,2.06026029361803,1.05267221574073,1.7250868458043],
-        [0,0,0,0,0.130746229741557,3.34592060164487,1.7957574295175,0.442819616887461,0.495508819670432],
-        [0,0,0,0,0,0.373622982855499,0,0,0.0415546222127236],
-        [0,0,0,0,0,0,0,0,0.226261330237217],
-        [0,0,0,0,0.116052206419069,3.62836482279123,0.656448658598883,0.803611478931444,0.51940338431784],
-        [0,0,0,0,0.0310254361014222,0.278425115656573,0,0,0.286846463701906],
-        [0,0,0,0,0.154634679916504,16.4297284022971,6.83572987404819,0.188102927695676,0.13969648817601],
-        [0,0,0,0,0.560283518080917,171.706396634718,9.86579060553685,5.43793334046377,4.11967535657951],
-        [0,0,0,0,3.04314535355857,99.9479380935053,34.1325788304043,11.4240928676479,13.1375806936383],
-        [0,0,0,0,26.9079695781241,1013.37662266574,331.3622309986,115.532201534053,106.350731906137],
-        [0,0,0,0,134.506667254343,2588.49498998673,1034.26969520823,1380.61934766772,664.38136905297],
-        [0,0,0,0,437.137678275364,4576.98081013026,2132.40987551677,4457.59364658826,2909.58237511504],
-        [0,0,0,0,7.94710419466333,55.1341866412844,60.1750326081521,58.9327600419763,71.5895018995678],
-        [0,0,0,0,0.444743594141601,11.0649647942,11.1414851924409,4.04775302024288,8.63294402602239],
-        [0,0,0,0,0.00269936475650061,2.39951643689886,1.08648829640043,0.241048104611297,0.257299784371592]
+[0,0,0,0,1.14567262211807,2.96531346083011,27.3307190064749,14.4520457623341,1.6454184297017],
+[0,0,0,0,0.845743245095655,1.24155950362149,8.84240076494358,6.45035490974219,1.4905195824053],
+[0,0,0,0,1.89756831608281,6.86708412035096,0,12.1728200224356,2.25556831108417],
+[0,0,0,0,0.00342246092062386,0.0703900040577518,0,0.674621900565412,0.226343970577692],
+[0,0,0,0,0.0054051426109136,0.00374671366578473,0.0388971716675158,7.4786259909714,0.366897104697019],
+[0,0,0,0,0.0632144761419324,0.280879643270617,0,2.49881005284716,0.384164185246744],
+[0,0,0,0,0.868056984751492,18.4856687098073,0,46.8369097587178,7.71368779888645],
+[0,0,0,0,23.0766461199999,123.574494674767,0,269.725658137902,68.9553241069449],
+[0,0,0,0,61.4223430453099,117.287899720042,0.130115170963729,879.187013617661,345.097807895228],
+[0,0,0,0,3.11629309058904,6.17705027887684,33.0079248130038,31.761155548493,20.9193962107074],
+[0,0,0,0,0.0178294576611451,0.156587087571791,0,0.277858529875381,0.0780000134529697],
+[0,0,0,0,0,0,0,0,0],
+[0,0,0,0,0.27968994360766,2.55191643462887,0,3.36400201722975,0.294793071717045],
+[0,0,0,0,0.0174550793636596,0.199828180623469,6.45720927759445,0.591720128520843,0.248915509058177],
+[0,0,0,0,0.55174084679505,10.6509174402706,20.0288624679866,2.89213011310205,0.947897131054468],
+[0,0,0,0,0.0288959679382822,1.97353374517034,0.434767248060358,0.709298659086709,0.21503955284739],
+[0,0,0,0,0.0467238200265344,1.60737662035448,12.5411478393468,1.49954002205318,0.21846448339775],
+[0,0,0,0,0.0436368496429981,2.86850432547072,5.19778219231072,1.05509272407184,0.108254824943917],
+[0,0,0,0,7.89872391199494,229.282771439861,293.236523486825,121.758495008586,30.6887565936191],
+[0,0,0,0,72.4739999824835,794.130137018201,3391.35384253323,804.403302744312,404.534197452817],
+[0.372113344183554,0,0,0,112.001701235109,1044.03888458148,5780.90100179906,2001.13824191351,1384.8811406524],
+[0,0,0,0,242.028379640407,2861.9229519777,5530.6678137471,1583.24639551779,1846.16668537432],
+[0,0,0,0,34.7525395449066,477.454815670077,62.5660585091058,111.833561078427,135.352162691085],
+[0,0,0,0,0.302736747175432,0.507677341759706,1.21010459199045,2.88539899094043,0.979481761053562],
+[0,0,0,0,0.0347033271222512,0.41953125504413,0,0.573686748034933,0.30795194937688],
+[0,0,0,0,0.0477344177755645,83.9919043637239,156.154372295063,1.70570787248891,1.07649179939151],
+[0,0,0,0,0.532228705031314,14.7641870106331,3.49604567071315,2.63633570623859,0.682220630231911],
+[0,0,0,0,0.0382562183768374,38.2002612824561,8.36963589454525,1.04998165942004,0.608740321794993],
+[0,0,0,0,0.1398903099726,4.259437381185,1.13040670497625,1.11602461507471,0.282797810120647],
+[0,0,0,0,0.0443117479690747,1.88343713687678,1.74132235350525,0.360193551321105,0.0554036235793021],
+[0,0,0,0,0.270094718561042,32.4898593792362,13.374639832241,15.7175657091611,1.12276140571385],
+[0,0,0,0,4.68552138362742,125.98330998095,33.8137475836472,17.5149384166869,12.5136987377463],
+[0,0,0,0,5.20428196987758,56.3299421882362,0,166.454022015819,61.1084454472506],
+[0,0,0,0,2.77666320517699,50.1961738708367,2.42964691162571,31.4711254120297,20.1691399034211],
+[0,0,0,0,0.0117641159727573,3.05112398668812,0,0.35386557170745,0.538014636077614],
+[0,0,0,0,0,0.364237847416648,0,0.15302423139806,0.138565863473429],
+[0,0,0,0,0.88471014077344,28.4401760177689,3.11320095972862,2.34577179326497,2.178300903267],
+[0,0,0,0,0.0401049124473993,1.30288805524927,0,0,0.356254079694831],
+[0,0,0,0,0.00412810198253858,0.612862168027897,0,0,0.106908268681099],
+[0,0,0,0,0.0322416977149276,0.141876624699185,6.62654483761649,0.668329605380592,0.195750409049841],
+[0,0,0,0,5.97589781363554,152.879884031221,31.1190720599306,3.86144120214939,13.0168012221352],
+[0,0,0,0,0.432833238711999,58.0046790071701,34.2416705913142,1.04534090595404,3.39094621043624],
+[0,0,0,0,0.13811135446945,7.98748185813757,0,2.44963792706405,0.934474860297936],
+[0,0,0,0,1.63697379820702,42.8637047490675,0,4.94763122590811,2.87110001755147],
+[0.124271446281445,0,0,0,0.83565308349831,8.75670813225785,1.01414056838525,25.8707133214879,6.47054295508041],
+[0,0,0,0,0.150529158473235,1.82657701835727,0,1.72614014875709,1.72703459092226],
+[0,0,0,0,0.145649101114342,3.87960078466344,0,0.157889734212817,0.333958630135967],
+[0,0,0,0,0.0156066080897113,0.226392999334849,0,0,0.0953752400849899],
+[0,0,0,0,0.0128163056910158,0,0,0.273831867235351,0.132129557029719],
+[0,0,0,0,0.126441258077987,2.08956489756764,0,0.372501793234691,0.304473661195705],
+[0,0,0,0,0.0403221251275634,0.176893276209182,0,0,0.164902754957128],
+[0,0,0,0,0.11214796389799,22.4230989445465,0.290005995189384,0.259316943165782,0.266318349390898],
+[0,0,0,0,0.495678452787675,163.008782876094,0,8.14844880990313,3.17122534164465],
+[0,0,0,0,2.60769280040512,98.0736584873872,33.2714456907619,7.94568998636526,11.6125572985197],
+[0,0,0,0,26.4655711878859,896.566452323318,81.0721489484593,179.213203880557,91.4674140769384],
+[0.803821837661292,0,0,0,118.765812408311,2287.18945321392,230.786615195148,650.673897266211,405.669625302512],
+[0,0,0,0,361.156713430694,4330.5907501266,66.5118509791295,2833.00938227805,2190.33400955188],
+[0,0,0,0,5.2742832159808,94.6653193117802,115.479947527323,41.5069775016981,46.6104069598718],
+[0,0,0,0,0.440116215727287,3.51420027332468,0,3.07183681594776,5.87979624376134],
+[0,0,0,0,0.0822036706950086,1.59514410269574,0,0.290388548235962,0.120313172273648]
     ]
 
 
 #       in2in        in2dg        in2nf        in2pl         dg2dg          dg2nf        dg2pl         nf2nf         pl2pl
 SUMA_NONPEAT = [
-        [0,          0,           0,           0,            0.141407318660674,10.1929944736626,2.45547296377941,0.934985845619184,0.571133152598292],
-        [0.00179835516790388,0.0077570040354415,0,0,         2.34908063123527,25.2427722671811,6.39229117738353,3.4219138978516,3.2490425533639],
-        [0.00534758714693163,0,   0,           0,            2.45000531701715,15.031248167097,3.13179240644172,3.00229534533409,3.8636657754395],
-        [0,          0,           0,           0,            0.279665720151973,4.41850460682842,1.92661914728248,1.67928877452138,0.583004265029243],
-        [0.0039106366564806,0,    0,           0,            0.244475332655683,3.43130373817633,0.761135085710914,3.46224167820493,0.56898713776611],
-        [0.00247353827297001,0,   3.450752779704,0,          1.36013834648593,31.7418245612809,10.8010196259883,12.0032328662344,5.38158082969737],
-        [0.135828607718478,0,     0,           0,            0.55949106093953,20.3993340358765,6.26923274000322,8.33051716406681,3.58237472811291],
-        [0.463074374886174,0.519779809985713,0,0,            4.55458191180253,127.251060944897,50.8265426648063,39.1483353701879,16.9493174557764],
-        [0.0392316678612583,0.0705437063490065,0,0,          0.592275305402192,13.8975885278644,7.50631777978354,10.4416530303888,4.94021344950983],
-        [0,          0.0984791954508626,0,     0,            0.0669334398221191,0.4643362546202,0.659727266059102,0.494747277287429,0.36430014946926],
-        [0,          0,           0,           0,            0.010934429109709,0.444609811509436,0.103345284967913,0.128840125139796,0.0580552621050258],
-        [0,          0,           0,           0,            0.0387697294382907,0.846050649108185,0.378698143592637,0.14085532214185,0.0643624304590081],
-        [0.00508455188128589,0,   0,           0,            0.522310600794883,13.2689793755988,2.97130591067213,0.817392823806553,0.548109254965777],
-        [0,          0,           0,           0,            0.231678302639577,6.64872612430634,2.67823798840798,0.770043800516603,0.411247560003204],
-        [5.87698151050795e-05,0.0673516409513571,0,0,        0.380015229598215,9.13490947818588,4.808914577692,0.892594190905769,0.710504129352543],
-        [0,          0,           0,           0,            0.0270543440324998,1.43645552423209,0.507549253156265,0.309581858170427,0.163186765211477],
-        [0,          0,           0,           0,            0.157859322309269,2.39137625519869,1.01292787835861,0.830236579128025,0.328347994709381],
-        [0.00192197803158633,0,   0,           0,            0.43032918776983,23.3866483423599,5.07099691595651,1.36106473259746,0.988462484866845],
-        [0.00803561410397135,0.316519723772878,0,3.2937486067904,6.87647781580497,264.648978407524,51.5501379397385,22.0034084423079,11.6854344382509],
-        [0.478627105582356,1.43596152907508,214.804845057869,3.64429077901145,13.9231701405149,288.255805534767,131.456505426783,120.769306310384,72.3440248228347],
-        [0.103233788034995,0,     0,           0,            7.84520137640244,40.3871169807798,24.950671985298,243.915989275326,173.05999037237],
-        [0.00927181405833486,0,   0,           0,            5.68484337511404,63.7771815662117,26.8110953664273,178.901045144458,147.899579323291],
-        [0.017230075566154,0,     0,           0,            0.20719664438176,0.921259357118464,0.47447055883394,21.9607641388703,17.9084989653675],
-        [0,          0,           0,           0,            0.00736784195821156,0.0199456088104428,0.0403924026320432,0.291990829485471,0.151751797289217],
-        [0,          0,           0,           0,0.268844071077208,2.07844623940891,0.780015805849315,0.4028995625386,0.423224266689714],
-        [0.0551530764257196,0,0,0,1.02506806382762,34.8997055610991,6.59220765413034,1.58174533601927,1.45413352465748],
-        [0.0228255524473728,0,0,0,0.409928824441063,22.0156123107501,4.57246837852213,0.743214993282379,0.836905784794069],
-        [0,          0,           0,           0,0.0459119483248436,1.0220039198005,1.01203375367137,0.304837337091907,0.173093317737471],
-        [0,          0,           0,           0,0.0559984058558339,1.14898565420969,0.61110042422207,0.555589025715904,0.323364887981095],
-        [0,          0,           258.88957566153,0,0.124182040654193,2.35833913478862,1.68955044050451,0.647124886230977,0.362426831846759],
-        [0.0234694263266502,0.472611691193602,0,0,1.61683857183852,38.8135422416062,13.5777017023276,6.06633250648761,2.90919893855203],
-        [0.00250000273090415,0.197882260176447,59.8725421776434,2.87214007924533,1.5720909984157,19.1670726338367,10.6982938804292,8.80424666709205,10.9025918937145],
-        [0.00208075500204519,0,   0,9.12163773985048,3.7271752842323,43.0491581937766,17.3368770513999,43.1234385195802,28.0985556039952],
-        [0.0628818112846509,0,    0,0,0.728870871294307,5.76143485147551,2.72645944382068,4.75549123721225,4.87028118718439],
-        [0.0213375806324759,0.370620427520743,0,4.6309830821488,0.178307325491882,1.52204843926888,1.96255736326937,0.463028562242261,0.432394926840285],
-        [0.0179638394832559,0,    0,0,0.0214315687413044,1.32549109595079,0.48090930539661,0.141249215825792,0.116181974606238],
-        [0,          0,           0,           0,0.0999266705292918,1.16922563487136,1.09317248408569,0.129419709105159,0.245254385418144],
-        [0.00703071514878116,0,   0,           0,0.361190468606128,8.5434521313796,2.60496287699425,0.349796230825334,0.520305236722686],
-        [0,          0,           0,           0,0.037494993907342,0.0651491914477951,0.165485506996433,0.205373689337888,0.128298669029704],
-        [0,          0,           0,           0,0.035123387771369,0.255398868119229,0.45415805267561,0.661105536818306,0.174726078324473],
-        [0.304286296216522,0.295723160985307,0,6.18731253011556,2.98505627663824,43.8296498179163,32.9240418255324,2.41928858520817,3.08927008482439],
-        [0,          0,           0,           0,1.01609049027764,30.5759537752629,11.7331239172082,2.53219422619062,1.15566259030692],
-        [0.00817862748363623,0.127451020349105,18.3638121163922,1.36514012988687,2.85147528977154,56.7799078999401,22.096743538269,25.4496255189834,6.2606638158568],
-        [0.245694562992258,1.8342720901193,885.186388908613,63.5189901099303,7.87168363666116,220.913011859589,82.0104030112259,10.3855444308341,9.32073781260244],
-        [0.00162700333364594,0.360401502306528,0,0,1.27464604238809,23.4586245986306,7.57318629417306,2.31315670725068,3.4790533342293],
-        [0,          0,           0,           0,0.157699746444911,2.50711697500425,0.76206302842731,0.453039652238217,0.609004524317967],
-        [0.133225007258153,0,0,0,0.255181841616749,3.03615585788832,2.54521352841406,0.554858847847886,0.209912349144958],
-        [0,          0,           0,           0,0.0491204533689714,5.072501498027,1.16075753845709,0.325101157436117,0.0957167091286781],
-        [0,          0.36420427495182,126.266614761875,31.2681098187996,1.23904718232655,91.0115919229815,13.70645235587,1.67451827857502,1.32564716948011],
-        [0.00656874873114239,0,0,11.7911040745315,0.960253910056034,27.6777045326332,11.0858719957425,1.25208000611901,1.19772351707277],
-        [0,          0,           0,           0,0.0464429371358843,2.34116854335685,0.859756274710369,0.315761713120273,0.195335724291196],
-        [0.0275418840994594,0,10.07757527669,0,0.301562588086092,20.5201871130749,3.83122082257345,3.4369923760502,0.868205244398444],
-        [0.108281052932321,0.966563391668618,0,3.3859101621373,4.91144272965974,241.198964824949,53.5804279487025,4.43005912704067,2.6759830210702],
-        [0.162768494370217,0.0193173726504353,370.151072140843,34.9646376712406,5.78697199727968,196.733019165525,37.6338202324473,7.39062982980459,3.70274394550908],
-        [0.0777460176993899,1.90084849535316,2477.30169241161,284.836688996567,7.5270870125462,200.890852233541,79.9186615973122,27.0794823962855,13.6708337549583],
-        [0.0207552207730293,0.0406880357856573,3592.39498126961,179.679275850895,9.95404590890601,133.631074201309,94.8999517388812,38.6514617902645,23.7850169817447],
-        [0.0478046866710185,0.051116996225046,0,4.30274670276174,1.73500933072569,7.66149727517309,6.01463807437345,95.0193534459292,67.2262558183509],
-        [0,          0,           30.6050425338013,0,0.47987781096326,13.1010807636789,4.01460301680675,2.25327975446985,2.09981034778272],
-        [0,          0,           0,           0,0.155933610140554,5.56659142443517,1.6832184331266,0.317428448129245,0.298018825306679],
-        [0,          0.518071275663763,0,      0,0.000869396832206842,0,0.00768351354724426,0.0354265267842358,0.0374964752432613]
+[0,0,0,0,0.120703121608,14.9794332176265,0.357981103148019,0.43723505740209,0.359823210220344],
+[0,0,0,0,0.810591206444419,31.4737046987557,5.74766573729406,2.59315449634913,2.47304128594596],
+[0,0,0,0,0.931292355589687,14.9866598513115,0.057757635467517,0.960422461343263,3.23494817461169],
+[0,0,0,0,0.22596426849281,1.83375081870666,0.527378203324721,1.06829702315233,0.537444443157773],
+[0,0,0,0,0.345238062313016,1.14262095922809,2.80900400993976,4.37927976530373,0.416088192680782],
+[0.00245593575158044,0,2.37504709155438,0,0.81192269099827,24.3843436157067,4.53309249088541,16.3485141240355,4.07968491195245],
+[0,0.946156217313942,0,0,0.686862520684546,6.50961356252627,1.07714046618582,10.3211150987106,3.50891116216009],
+[0.542664698579784,1.05664826328643,0,0,5.13374802559292,60.8864589637822,56.7932983755022,39.6944465976326,13.5989638072589],
+[0.0351889347442764,0.099438648947489,0,0,0.663645876487579,15.360206468849,4.63384632278107,9.23479834156471,5.21571487358116],
+[0,0.187715972980448,0,0,0.0752502989355917,0.784737579178057,0.289631541503268,0.506078293872877,0.386174588006619],
+[0,0,0,0,0.0179186053632778,0.147296841144939,0.377613157050411,0.11284850200482,0.0588839447406469],
+[0,0,0,0,0.0489415924642539,0.619361810058844,0.156835399333086,0.183465744538299,0.065509636377591],
+[0,0,0,0,0.536810274894718,9.49927191083573,0.859859166946478,1.21196907925658,0.497125069638954],
+[0,0,0,0,0.195687888069405,4.19735948777709,2.54564148274341,0.738720172309781,0.321245082715491],
+[5.83515895558356e-05,0,0,0,0.246364442513415,9.56505104368369,2.17317724527496,1.42922636231535,0.530456193000527],
+[0,0,0,0,0.0175753886695615,1.54744324427056,0.130125183613203,0.395685398601459,0.148012322988075],
+[0,0,0,0,0.0897492225353858,3.31154946673539,1.32121985347194,0.555650292114737,0.280690860715202],
+[0.00190830059637943,0.0231992721099628,0,0,0.454365162961465,19.9931068338013,5.62486761678987,1.9089337413248,0.952991820039366],
+[0.00442423624411427,0.187755840453666,0,0,7.75472150501697,253.150189234536,40.5280489519708,30.756485119843,10.1589709030434],
+[0.463553685873932,1.35322048411538,0,0,13.3452372960748,298.915366192499,56.9953657134319,118.975425593682,72.969279703497],
+[0.118429973251961,0,0,0,6.84618657230987,45.2594428593525,12.5235464064996,269.949325002518,160.646086676175],
+[0.024514953394494,0,0,0,4.78652667393901,61.8992098606132,37.139128874535,175.832360297881,135.761400540647],
+[0.0214422953249877,0.0735841893000734,0,0,0.225468747446211,0.522156951047226,0.0297091586824667,22.7766452263133,15.9064716933043],
+[0,0,0,0,0.00910948883948564,0.0787915699619255,0,0.298762741928729,0.143134937108137],
+[0,0,0,0,0.291355718551979,2.45405482315874,0,0.434456671760483,0.413009890016342],
+[0.0672475800543507,0,0,0,0.795353037352241,24.5475437691346,6.05398376530089,1.0641577091758,0.982149668908215],
+[0.0234479285115962,0,0,0,0.297752945316091,23.234303234689,0.5779478194572,0.690015562492367,0.638371262676717],
+[0,0,0,0,0.0817501243797677,1.06566030460466,0,0.342323341857608,0.173048704605972],
+[0,0,0,0,0.0656970887020114,0.915495237654975,0,0.80886270479305,0.295748554918371],
+[0,0,0,0,0.106867405169221,3.40265786529096,0.261255841537114,0.592786364641101,0.430754093015225],
+[0.0235039611966004,1.51483887547148,0,0,1.39250157099278,31.5755442733584,1.96669258278429,8.4962771883729,2.59939157025547],
+[0.0234440103073512,0.0590078710505272,0,0,1.47572485137853,23.0954254934635,8.10891937980938,9.35985004911814,11.033463462544],
+[0.0216034528366366,0.371005224222489,0,0,3.64720018979135,34.6534909554203,3.98594109885395,52.6397807023267,29.1369412340724],
+[0,0.994789712371869,0,0,0.460437354618292,7.18667775384967,0.455833348312687,4.98450501460632,5.02257984726353],
+[0.0423714706181032,1.74510340631858,0,0,0.185321424484753,2.42924051886728,1.92044427865477,0.455582375759733,0.464886649849658],
+[0.0178360028231508,0,0,0,0.00806114867403704,1.29722072653162,0,0.113691303834068,0.143772957177751],
+[0,0,0,0,0.077379599119594,1.16555100689788,0,0.165694628343919,0.218116133498342],
+[0.0224757396287047,0,0,0,0.332135122705947,8.42418968231316,0.291447407608845,0.610470970277343,0.405475151500196],
+[0,0,0,0,0.0451371480073834,0.117207443723212,0,0.186760381218415,0.120277919619735],
+[0,0,0,0,0.044512527005587,0.111059416135458,0,0.687708201891567,0.187402666272971],
+[0.226799838700096,0.176643374647474,0,0,2.70715297722257,74.8256812705946,10.9082595592717,3.48331674750995,3.18466851002963],
+[0,0,0,0,0.926645856705905,42.7996295613443,0.424393870634883,3.07658570573257,1.05985608027721],
+[0.00812042564855084,0.205187118799444,6.31962376664306,0,2.38481972873317,82.0761400437818,3.35902367567046,31.202979346896,5.48564611844452],
+[0.202947802261494,0.730067949340245,177.646453845561,0,7.14294167226558,288.911926609381,19.9299375840378,11.1821824625579,8.59957988265024],
+[0.0120310175176854,0,0,0,1.44457559765225,24.8583800807699,3.41858994191493,2.2309385747159,3.64614252117216],
+[0,0,0,0,0.166213395000063,2.62049179406717,0.37489369419325,0.47014376728668,0.647561867538631],
+[0.132276933781286,0,0,0,0.312613484738457,2.83936516661604,11.0244096757687,0.357618628626187,0.281479316407635],
+[0,0,0,0,0.0554778022576765,4.78516427048498,0,0.251989840434891,0.0866408753847286],
+[0,0.107152387161781,73.9141426155772,0,1.02793928485911,67.7957579561563,0.786064266835947,1.14990747989259,0.721087593070703],
+[0.00652200331441643,0.479580677817881,0,0,0.999530881813634,26.3630413678979,5.06598445820932,1.62395394783625,0.900883170072705],
+[0,0,0,0,0.0323549260314406,2.03779884775054,3.29719928780189,0.300582489314887,0.210579693777916],
+[0.016327182478265,0,0,0,0.281144802913357,23.3966587623149,0,3.72849302533968,0.78514589614252],
+[0.308111738999638,0.85091183086093,3.81082959214817,0,4.76967186776014,307.224738364964,50.8149535203278,5.31439234000853,1.72526067316471],
+[0.218199073242027,0.148099958177258,322.754748378957,0,4.82091848001994,187.393740479224,16.0959279847774,9.61392390907155,3.3116664413481],
+[0.116527067519473,0.992666744035188,911.961856671343,0,6.91923238972445,232.202914602036,55.7855255052644,25.5173255608938,12.0141962845166],
+[0.030580103494392,0.0413568786369661,759.253894815995,0,7.76847760867569,168.07673383771,22.1226262228166,37.4343858802541,23.8413897961632],
+[0.0589479059282674,0,0,0,1.618245991526,6.73391695097645,1.71225729812729,89.4616180146209,61.4596496103959],
+[0.0105980250409623,0,7.29608734391017,0,0.323352740958419,14.4361641455001,6.64925320690155,5.60719194703266,1.90466645052374],
+[0,0,0,0,0.163362960586318,7.24044741758639,1.32674547705792,0.393860435097785,0.260732098663845],
+[0,0.526587511800424,0,0,0,0,0,0.0570860293949095,0.0322533253279867]
     ]
 
 
 #       in2in        in2dg        in2nf        in2pl         dg2dg          dg2nf        dg2pl         nf2nf         pl2pl
 SUMA_PEAT = [
-        [0,          0,           0,           0,           55.3656499654056,181.503418125979,73.9078329127183,567.141990498403,148.829597267745],
-        [0,          0,           0,           0,           173.843907854137,382.269648535498,373.969555176022,947.700088683471,393.296410010351],
-        [0,          1.81437337188111,0,       0,           85.8392106393286,356.32822735096,178.896694133443,691.613893703908,180.634667352977],
-        [0,          0,           0,           0,           3.99635540377873,18.1817853836005,16.6801620694879,16.2375187563689,6.10764115665539],
-        [0,          0,           0,           0,           0.734862223314401,13.2900340819469,2.40218016833702,15.6504761478884,2.04833026451743],
-        [0,          0,           0,           0,           15.5143833784363,150.917294497498,28.7124808941142,384.763723816971,37.4385137049778],
-        [0,          0,           0,           0,           5.02624203314829,73.3896039769466,10.4056026069191,66.7708253205091,18.4309128990277],
-        [0,          0,           0,           0,           109.562031365515,1395.24303056699,391.009162060265,845.653753321041,175.117448383273],
-        [0,          0,           0,           0,           1.22895037188102,33.7566004847528,21.4862611445241,40.4147534069068,6.5528388036819],
-        [0,          0,           0,           0,           0.0127858040296933,0.420076462146427,0.547653017505863,0.754157917642552,0.258609402994366],
-        [0,          0,           0,           0,           0.0179142735945905,0.079678272920005,0.124869993213881,0.11933861001497,0.0765247361783511],
-        [0,          0,           0,           0,           0.0223985397186411,0.897933103345997,0.898233010510568,0.982420497592381,0.173791388474743],
-        [0,          0,           0,           0,           0.340790912378154,28.8826501631455,6.36076369122433,9.42103571790308,2.12750682834883],
-        [0,          0,           0,           0,           3.01972807113228,39.873010887218,10.9739364651703,39.7058126813159,9.20980088670703],
-        [0,          0.116627722374566,0,      0,           13.7848945108368,182.866724125466,59.8127157876018,80.731782811972,34.4646382615466],
-        [0,          0,           0,           0,           0.135137130060613,5.89263730687423,1.23262212152223,2.91419760292599,0.801390004785476],
-        [0,          0,           0,           0,           1.41367464502618,43.5991214657193,8.11218987779248,16.7252489934005,3.86961846170615],
-        [0,          0,           0,           0,           2.00234639489271,42.3917330142556,8.16456743466827,12.6717552761524,4.13554732451726],
-        [0,          0,           0,           0,           33.7934260096328,738.673295535946,164.297278688296,227.45739720147,59.9314651441806],
-        [0,          1.18130189346248,781.425055343171,44.3726488253614,94.4782378478152,1083.26629631715,240.611617150324,925.142826943412,213.813878153526],
-        [0,          0,           0,           0,           18.713179207791,216.039461461641,79.0322511798691,786.386841569059,1440.30548838601],
-        [0,          0,           0,           0,           23.7645222662435,88.6354606384621,43.7308310858755,1338.0811811254,1847.6413645613],
-        [0,          0,           0,           0,           0.171803561926989,1.5263805877058,0.62254270405202,83.3995218866839,66.106981866223],
-        [0,          0,           0,           0,           0,              0.0489959251912341,0,      0.507418899280414,0.926148015064045],
-        [0,          0,          0,        0,        0.222216944622137,6.19378483264269,4.4674520913517,3.55519048426622,1.05635788836871],
-        [0,          0,          0,        0,        5.55719121451193,202.555901598032,68.3000247280631,73.6717527366905,42.7814942868226],
-        [0,          0,          206.69979657516,0,12.7488278345894,162.363359962679,27.2912738312594,47.0273812448227,21.4641973078117], 
-        [0,          0,          0,        0,        0.724833884236963,3.55631605847071,11.9926591919358,4.83322598984605,1.62480628784031],
-        [0,          0,          0,        0,        0.309148482719423,10.4657110097673,1.92875233914637,1.00126290034688,0.723911310072339],
-        [0,          0.0488471998050982,96.5146795885456,0,0.999914437645502,20.4217738342635,12.2312348762174,2.89315960238288,0.979511247174768],
-        [0,          0,          0,        0,        2.0649953877563,68.7346771487061,22.8577198949749,13.6474207802307,4.59923394254566],
-        [0,          0,          192.218259288851,0,5.72566793415919,32.0596574991659,12.2362472831997,32.8398030969839,9.40246566019737],
-        [0,          0,          0,        0,        5.84268202815148,56.6980889753676,14.1276840060587,12.9986337368801,17.2091494826056],
-        [0,          0,          0,        0,        3.68612395111116,18.1178755111818,15.4654097146025,3.15585744336838,11.3611592375628],
-        [0,          0,          0,        0,        0.185934899775326,1.36287364160267,0.640207072906382,0.177929117403907,0.267061886102514],
-        [0,          0,          0,        0,        0.0266213485499997,1.82626471245176,0.0875865035004136,1.23023760478213,0.565477411886306],
-        [0,          0,          306.709626114928,0, 1.67969552276801,15.8411351842337,2.01941972427886,5.6912164295659,2.43202687667804],
-        [0,          0,          62.1112473035167,127.133897908359,4.72065915525863,47.6508591807582,28.0837721777564,40.3259952624721,15.6597183211901],
-        [0,          0,          0,        0,        0.204834406021351,0.350049223374549,0.201988149466525,0.0724678559427216,0.343029297894592],
-        [0,          0,          0,        0,        0.130855705242357,0.809754461946449,0.460551480462197,0.918700361326517,0.451419255581487],
-        [0,          0.266323174723552,32.01205850998,21.0205662346642,7.5258838110777,122.202606896238,33.6308902376152,12.2837158203078,17.2848697178052],
-        [0,          0,          0,        0,        1.18485606275041,8.5965582640686,14.3300491088602,7.89571722552944,6.39698745368949],
-        [0,          0,          0,        0,        4.49243557102274,41.3706906505532,28.2464011622062,33.1529641725998,16.2529045216443],
-        [0,          120.295236081137,12324.8982615973,1130.45396396136,33.7645284655026,592.611510885839,198.762998805888,59.3656305265961,57.1964599300968],
-        [0,          1.04678891565976,125.824078398294,8.15575156081173,0.49284079474827,2.55309405100418,1.3947315385393,1.23215190491751,1.69555414810047],
-        [0,          0,          0,        0,        0.111902288589217,2.01484117621562,0.492793254918799,0.121932093121109,0.255455293751091],
-        [0,          0,          0,        0,        0.276373096655257,3.89962787219817,0.921696131004706,0.517446750433441,0.402943926067301],
-        [0,          0,          224.509562498318,0, 0.401673477097847,7.4444264686665,2.34408031603837,0.95668832138428,0.737532601841382],
-        [0,          0.795441234732297,167.949056392891,8.00337211669701,12.8382471748419,112.016429544299,57.6412415444829,121.13929457293,39.8573176999601],
-        [0.892572023688356,4.90614523462686,0,0,     18.3078260676989,102.942184921599,67.6299221921797,60.8152101223323,27.3532376416602],
-        [0,          0,          0,        0,        0.120349356244536,0.387885850553832,0.975876578203166,0.114524567604955,0.524738683443782],
-        [0,          0.578742665243914,40.0710075772157,0,1.50259676344193,10.1155858367545,3.94088618902321,0.540363881691981,1.80710562915621],
-        [0,          0.0703766352882755,4.39882298654266,1.3746315190933,10.8976394709979,137.568243939627,38.8751921327853,48.0967345993993,12.4156103374443],
-        [0,          74.7608075939714,3801.62351213502,857.992221622313,33.9935418353409,358.278248514781,127.511688055742,115.779265255845,37.7133238180855],
-        [1.56119327804822,110.806690876012,16074.9588531843,1544.56401714728,39.7341245577811,559.046407322729,238.294626451268,245.953197141911,46.4411260597082],
-        [0,          51.8169525839381,11095.1722094221,2463.06315437073,22.8109701935106,186.132358907519,90.7920091745004,223.100681252251,112.334302561543],
-        [0,          0,          0,        0,        42.7996630267955,102.986534320409,62.3843451349542,587.161001547811,638.154099770127],
-        [0,          1.06661871536359,64.1038106419048,20.0324311462258,1.7481377851019,15.5870006744131,8.57470228717785,10.3144016505148,33.504157225736],
-        [0,          0,          0,        0,        0.567513702896036,7.14327327226792,3.06309179292366,0.380134451093927,0.904410137680601],
-        [0,          0,          0,        0,        0.309040225441127,1.23475413749881,0.809569468335827,0.390509799029834,0.262429101022705]
-    ]
+[0,0,0,0,63.9743113310572,157.103129949692,13.3215239191195,641.17572335183,109.375734691543],
+[0,0,0,0,184.504414488364,253.746601315547,203.310546636453,1096.84170610007,326.745766054364],
+[0,1.96494332699923,0,0,74.0841082253856,290.375586725843,59.7741968071433,913.004072662895,124.221167848375],
+[0,0,0,0,3.98529425915448,10.4377502992021,1.77084291310235,40.2665678308601,4.36923614378273], 
+[0,0,0,0,0.26131254920119,10.1416357934874,0.586145626773855,21.275872383307,1.05615794362632],
+[0,0,0,0,5.7002991053978,92.329050211664,0.821373844163692,551.753820459179,17.0016578818352],
+[0,0,0,0,4.64006833539366,51.5586902695285,0.862414010985492,101.362357444919,13.5270621110338],
+[0,0,0,0,66.6264676022699,919.415955545056,36.0860253199621,1640.39857120152,96.2773768628549],
+[0,0,0,0,1.23774330405105,38.3984503053421,1.71320623087855,56.7897928477496,4.49028058626804],
+[0,0,0,0,0.0230883234832095,0.550185087840895,0.477213764040605,1.20450625085598,0.187655155094136],
+[0,0,0,0,0.0169099603143175,0.0579360857980009,0.458895623943672,0.345129079852066,0.0475224835605797],
+[0,0,0,0,0.0278800096221191,0.77072039834675,0.865524850141572,1.28368742474833,0.0895663568792758],
+[0,0,0,0,0.353041425278311,14.4187343297233,5.64562839838988,20.3570865301753,1.09828553103713],
+[0,0,0,0,2.98581176103041,33.1987643676318,2.47707833754147,59.1395467317476,5.2317676745652],
+[0,0.171520815697716,0,0,15.1129205452133,172.640860563568,15.6976450056932,115.273073855696,22.2467919887329],
+[0,0,0,0,0.131496922219656,5.05302713295854,0.321665743890904,4.69826254738128,0.399878394610718],
+[0,0,0,0,0.861304655463137,27.2341289411056,4.03303237169954,36.5778456359475,1.13547147837616],
+[0,0,0,0,1.5015016750999,37.525615766485,4.60424241710969,16.9601092884257,2.275012017038],
+[0,0,0,0,21.1799918645792,678.276837329769,13.6726714904964,397.484695325822,27.1222819923706],
+[0,1.15820298533004,579.711523172439,0,86.4022683676816,933.903565569876,30.150281491439,1225.28066993304,165.778749608615],
+[0,0,0,0,16.6070911367568,221.786165659973,0.538615276399663,761.622684444589,1290.03543858356],
+[0,0,0,0,21.6254056567367,96.7381893757353,38.7265833473136,1255.36093715572,1627.20237922145],
+[0,0,0,0,0.152298237604158,1.58117546775493,0,84.1401589412164,74.0635544654676],
+[0,0,0,0,0.0131071367110964,0.14594737954522,0,0.557854453826242,0.75206499522963],
+[0,0,0,0,0.555165439705832,8.54678292228802,0.226489298770974,2.22853913858047,0.844268855815117],
+[0,0,0,0,6.91008865788739,190.130029343721,18.638626651602,97.6799570999046,35.7077451883176],
+[0,0,0,0,2.46021759991088,191.829308425334,21.1023803831621,43.2931071428797,20.0838743048661],
+[0,0,0,0,0.912258061999976,3.49050240362979,21.4814184962383,4.56901444112749,1.22677846980124],
+[0,0,0,0,0.274772998369188,9.58448823318902,0.341830017620852,1.38232276025253,0.574141612853581],
+[0,0.0478920527871059,198.086377414808,0,1.04371489946315,23.4426100404722,1.2613661523737,2.55132885709322,0.96278199409169],
+[0,0,0,0,2.62657737230562,81.9829448370302,0.711136023089811,16.925409966295,3.64729442095841],
+[0,0,64.8187691877834,0,4.74184009296325,41.6895367357962,1.63499262093784,35.1237963574303,7.76158521839065],
+[0,0,0,0,2.31366773442026,53.9987504117928,0.278590936795814,17.1172898509699,19.5517610706267],
+[0,0,0,0,2.81115872216847,27.7288372115906,0.143703267948773,5.60062866407544,10.1377024282121],
+[0,0,0,0,0.185160541384765,0.743386372837399,0.147928343917039,0.0100784765013991,0.31990164314418],
+[0,0,0,0,0,1.05966573723187,0.0542420457993819,1.08980312116996,0.580136610243028],
+[0,0,0,0,0.96372531975568,14.5273119085394,0,7.34051798982764,2.18716124775122],
+[0,0,334.970545150121,0,5.44324975160413,46.7967176497805,12.4999105715383,48.948328651488,11.7962902703262],
+[0,0,0,0,0.112666806757936,0.318332579430821,0,1.09978041334676,0.219727703214673],
+[0,0,0,0,0.0216539897252481,0.785946945620909,2.31260944996328,0.851010354956596,0.438447878749686],
+[0,0.261115552012543,48.0489627056877,0,8.86830385020664,106.01031367717,20.5600177277921,26.2838107973905,11.6890128291661],
+[0,0,0,0,1.66667115624636,12.3223050781422,13.5819206668434,8.20556813117553,5.12294921692478],
+[0,0,21.2589964841028,0,3.17583704124789,45.251676523454,23.3167135861274,59.3728623989194,11.7944149025522],
+[0,121.785316650512,8708.90001432863,0,31.5508078856163,624.67992118581,32.9094301482918,74.4228174111066,48.3596972370582],
+[0,1.02632024378071,89.8779536597949,0,0.482252616572759,2.50478889576423,1.13767886886794,3.28363149494924,1.50468240114196],
+[0,0,0,0,0.0637640777438666,2.47034042335837,0.466708122166985,0.36874020952129,0.252447952818725],
+[0,0,0,0,0.136754900095743,3.66412501922861,0,0.467819069528418,0.461833929463074],
+[0,0,0,0,0.356903476321306,10.7239070155271,0,1.16157680895766,0.612595041508801],
+[0,1.81108692975402,467.31472318235,0,12.6715475217949,153.43334105975,4.14836973283696,155.27354197992,33.8580369015068],
+[0.341058268018476,1.99105987743062,37.6224340325068,0,18.8798992844432,112.843317132801,32.2561067746276,80.1506701427039,19.7374334251959],
+[0,0,0,0,0.138926634876441,0.679209328054152,0.514192071081927,0.19905690693361,0.54420564701107],
+[0,0.567426062977756,44.4605551238034,0,0.936950318485897,10.8735587040049,3.05133796491944,0.239235868148554,1.8807158224774],
+[0,0.237361742725757,14.9856036112105,0,7.00348543942147,107.988777737288,24.6801027356526,77.3443862054014,8.73793263587261],
+[0,64.1194680291188,4754.9572963346,659.20423484312,26.157060873225,404.40182554312,35.2296121686024,174.015612488556,21.3785739416618],
+[0.859799726315099,108.800552014029,15480.5856338665,63.1121894186458,37.0662067098946,436.433291832148,73.6081223888346,429.334781543419,40.9671415303894],
+[0,42.0460801030249,15957.1367876977,525.002781069699,28.6995164285554,209.257738349935,60.9820595100894,287.446579595498,101.165219008302],
+[0,0,0,0,34.6890478867166,37.2353057297324,177.304698222733,585.442083760033,605.62726510244],
+[0,0.522881148061311,91.5805527169861,18.8542504469889,1.3113065492843,19.2941837408137,4.07123388469904,8.75404212631724,31.7481817344671],
+[0,0,0,0,0.599756213094353,6.81715950734931,2.00042417723543,0.570235972208493,0.790599830892157],
+[0,0,0,0,0.248479664506278,1.04462965072496,1.60339025606065,0.527884464315228,0.213413077373596] ]
