@@ -4,8 +4,10 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
     """Gets the dry matter emissions from GFED4 and converts to oc/bc using emission factors associated with GFED4"""
 
     ds_grid = ee.Image('projects/IndonesiaPolicyTool/dsGFEDgrid')
+    print(ds_grid.projection().nominalScale().getInfo())
     print("SCENARIO", scenario)
     peatmask = getPeatlands()
+    print(peatmask.projection().nominalScale().getInfo())
     if logging:
         loggingmask = getLogging()
     if oilpalm:
@@ -13,7 +15,8 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
     if timber:
         timbermask = getTimber()
     if conservation:
-        conservationmask = getConservation()
+        conservationmask = getConservation().reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).eq(1)
+        print(conservationmask.projection().nominalScale().getInfo())
 
     # get emissions based on transitions or from GFED 
     print("YEAR == ", year)
@@ -87,25 +90,14 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
 
 
     def convert_transition_emissions(oc_bc_emissions):
-        # first mask out data from regions that are turned off
-        if logging:
-            maskedEmissions = oc_bc_emissions.updateMask(loggingmask)
-        else:
-            maskedEmissions = oc_bc_emissions
-        if oilpalm:
-            maskedEmissions = maskedEmissions.updateMask(oilpalmmask)
-        if timber:
-            maskedEmissions = maskedEmissions.updateMask(timbermask)
-        if peatlands:
-            maskedEmissions = maskedEmissions.updateMask(peatmask)
-        if conservation:
-            maskedEmissions = maskedEmissions.updateMask(conservationmask)
+        # need to unmask to make mask values zero
+        oc_bc_emissions = oc_bc_emissions.unmask()
 
         # split into GEOS-Chem hydrophobic and hydrophilic fractions
-        ocpo = maskedEmissions.select('oc').multiply(ee.Image(0.5 * 2.1 ))  # g OA
-        ocpi = maskedEmissions.select('oc').multiply(ee.Image(0.5 * 2.1 ))  # g OA
-        bcpo = maskedEmissions.select('bc').multiply(ee.Image(0.8))        # g BC
-        bcpi = maskedEmissions.select('bc').multiply(ee.Image(0.2))        # g BC
+        ocpo = oc_bc_emissions.select('oc').multiply(ee.Image(0.5 * 2.1 ))  # g OA
+        ocpi = oc_bc_emissions.select('oc').multiply(ee.Image(0.5 * 2.1 ))  # g OA
+        bcpo = oc_bc_emissions.select('bc').multiply(ee.Image(0.8))        # g BC
+        bcpi = oc_bc_emissions.select('bc').multiply(ee.Image(0.2))        # g BC
 
         emissions_philic = ocpi.add(bcpi).multiply(ee.Image(1.0e-3)).rename(['b1'])
         emissions_phobic = ocpo.add(bcpo).multiply(ee.Image(1.0e-3)).rename(['b1'])
@@ -126,7 +118,7 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
         return ee.Image(first).add(ee.Image(image))
 
     #total_emissions = monthly_dm.sum().reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).multiply(ee.Image.pixelArea()).reduceRegion(reducer=ee.Reducer.sum().unweighted(), geometry=ee.Geometry.Rectangle([90,-20,150,10]), scale=ee.Image(emissions_masked.first()).projection().nominalScale(), maxPixels=1e9)
-    total_emissions = ee.Image(monthly_dm.iterate(sum_collection, ee.Image(0))).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).multiply(ee.Image.pixelArea()).reduceRegion(reducer=ee.Reducer.sum().unweighted(), geometry=ee.Geometry.Rectangle([90,-20,150,10]), crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale(), maxPixels=1e9)
+    total_emissions = ee.Image(emissions.iterate(sum_collection, ee.Image(0))).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).multiply(ee.Image.pixelArea()).reduceRegion(reducer=ee.Reducer.sum().unweighted(), geometry=ee.Geometry.Rectangle([90,-20,150,10]), crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale(), maxPixels=1e9)
     print('total emissions: {}'.format(total_emissions.getInfo()))
 
     return emissions, total_emissions
@@ -203,9 +195,7 @@ def getTransition(initialLandcover, finalLandcover, peatmask, year):
     gfed_index    = [3, 3, 3, 3, 3, 3, 3, 0, 0]
 
     #        SAVA  BORF TEMF DEFO  PEAT AGRI
-    #oc_ef = [1.00, 1.0, 1.0, 1.00, 1.00, 1.0]
     oc_ef = [2.62, 9.6, 9.6, 4.71, 6.02, 2.3]
-    #bc_ef = [1.00, 1.0, 1.0, 1.00, 1.00, 1.00]
     bc_ef = [0.37, 0.5, 0.5, 0.52, 0.04, 0.75]
 
     emissions_all_months = ee.List([])
@@ -279,14 +269,14 @@ def getTimber():
 def getPeatlands():
     """Get boundaries for peatlands"""
     #fc = ee.FeatureCollection('1cSPErISE1fJURsPbeHrnaoCofSa6efRPbBX5bz8a')
-    ft = ee.FeatureCollection('projects/IndonesiaPolicyTool/IDN_peat')
-    ds_grid = ee.Image('projects/IndonesiaPolicyTool/dsGFEDgrid')
-    mask = ft.reduceToImage(properties=ee.List(['id']), reducer=ee.Reducer.max()).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).gt(0).expression("(b('max') > 0) ? 1: 0")
-    region = ee.Geometry.Rectangle([90,-20,150,10]);
+    #ft = ee.FeatureCollection('projects/IndonesiaPolicyTool/IDN_peat')
+    #ds_grid = ee.Image('projects/IndonesiaPolicyTool/dsGFEDgrid')
+    #mask = ft.reduceToImage(properties=ee.List(['id']), reducer=ee.Reducer.max()).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).gt(0).expression("(b('max') > 0) ? 1: 0")
+    #region = ee.Geometry.Rectangle([90,-20,150,10]);
 
     #mask = ee.Image('users/karenyu/peatlands')
-    #mask = ee.Image('projects/IndonesiaPolicyTool/peatlands')
-    return mask.reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).subtract(ee.Image(1)).multiply(ee.Image(-1))
+    mask = ee.Image('projects/IndonesiaPolicyTool/peatlands')
+    return mask#.reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).subtract(ee.Image(1)).multiply(ee.Image(-1))
 
 def getConservation():
     """Get boundaries for conservation areas"""

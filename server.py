@@ -34,9 +34,7 @@ class MainHandler(webapp2.RequestHandler):
 
     mapIds, tokens, exposure, totalPM, provtotal, mort, totalE = GetMapData('Miriam', 'Singapore', 2006, 2006, False, False, False, False, False)
 
-    print(mapIds)
-    print('testing')
-    print(totalE['bc'])
+    #print(totalE['bc'])
 
     print(provtotal)
     # Compute the totals for different provinces.
@@ -206,7 +204,7 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
 
     print(ee.Image(emissions.first()).bandNames().getInfo())
     emissions_display = ee.Image(ee.ImageCollection(emissions.toList(1, 8)).first()).add(ee.Image(ee.ImageCollection(emissions.toList(1,9)).first())) 
-    mapid = GetMapId(emissions_display.select('b1').add(emissions_display.select('b2')).multiply(scale), maxVal=1e-1, maskValue=1e-6, color='FFFFFF, FFFF00, FFC100, FF7700, DE2700, 761200')
+    mapid = GetMapId(emissions_display.select('b1').add(emissions_display.select('b2')).multiply(scale), maxVal=10, maskValue=1e-6, color='FFFFFF, FFFF00, FFC100, FF7700, DE2700, 761200')
 
     mapIds.append([mapid['mapid']])
     tokens.append([mapid['token']])
@@ -228,7 +226,7 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
     # we only want map for Sept + Oct
     summer_pm = pm.filterDate(str(metYear)+'-07-01', str(metYear)+'-11-01')
 
-    totPM = summer_pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
+    totPM = summer_pm.mean().divide(ee.Image.pixelArea()).multiply(ee.Image(55.5*74*1000*1000)).set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
     annualPM = pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
     mapid = GetMapId(totPM, maxVal=0.05, color='FFFFFF, FE9CFF, FF00B4, CC00FF, 5F00E5, 0003AE')
     mapIds[2].append(mapid['mapid'])
@@ -338,19 +336,36 @@ def getMonthlyPM(sensitivities, emiss):
     # get emissions
     #emiss = ee.ImageCollection(ee.List([ee.Image('users/karenyu/placeholder_emissions')]*12))
 
+    mask = ee.Image('users/karenyu/logging_concessions')
+    print(mask.projection().nominalScale().getInfo())
+
+    print("sensitivities nominal scale")
+    print(ee.Image(sensitivities.first()).projection().nominalScale().getInfo())
+    print(ee.Image(emiss.first()).projection().nominalScale().getInfo())
    
     # aggregate emissions to coarser grid
     grid = ee.FeatureCollection('ft:10zDDmOTT43LmBdYb8p93Ki6BbdXjQDLzdi01aF43')
 
+    prj = ee.Image(sensitivities.first()).projection()
     def aggregate_image(image):
         regridded = image.reduceRegions(collection=grid, reducer=ee.Reducer.mean().unweighted(), scale=image.projection().nominalScale())
-        b1 = regridded.reduceToImage(properties=ee.List(['b1']), reducer=ee.Reducer.mean().unweighted()).rename(['b1'])
-        b2 = regridded.reduceToImage(properties=ee.List(['b2']), reducer=ee.Reducer.mean().unweighted()).rename(['b2'])
+        b1 = regridded.reduceToImage(properties=ee.List(['b1']), reducer=ee.Reducer.mean().unweighted()).rename(['b1']).reproject(crs=prj, scale=prj.nominalScale())
+        b2 = regridded.reduceToImage(properties=ee.List(['b2']), reducer=ee.Reducer.mean().unweighted()).rename(['b2']).reproject(crs=prj, scale=prj.nominalScale())
         regridded_image = b1.addBands(b2)
         return regridded_image
 
     coarse_data = emiss.map(aggregate_image)
+    print(ee.Image(coarse_data.first()).projection().nominalScale().getInfo())
 
+    # compute total emissions
+    def sum_collection(image, first):
+        return ee.Image(first).add(ee.Image(image))
+
+    total_emissions = ee.Image(emiss.iterate(sum_collection, ee.Image(0))).multiply(ee.Image.pixelArea()).reduceRegion(reducer=ee.Reducer.sum().unweighted(), geometry=ee.Geometry.Rectangle([90,-20,150,10]), scale=ee.Image(emiss.first()).projection().nominalScale(), maxPixels=1e9)
+    print("fine total emissions: {}".format(total_emissions.getInfo()))
+    
+    total_emissions = ee.Image(coarse_data.iterate(sum_collection, ee.Image(0))).multiply(ee.Image.pixelArea()).reduceRegion(reducer=ee.Reducer.sum().unweighted(), geometry=ee.Geometry.Rectangle([90,-20,150,10]), scale=prj.nominalScale(), maxPixels=1e9)
+    print("coarse total emissions: {}".format(total_emissions.getInfo()))
     combined_data = sensitivities.toList(12).zip(coarse_data.toList(12))
 
     def computePM(data):
