@@ -34,7 +34,7 @@ class MainHandler(webapp2.RequestHandler):
 
     mapIds, tokens, exposure, totalPM, provtotal, mort, totalE = GetMapData('Miriam', 'Singapore', 2006, 2006, False, False, False, False, False)
 
-    #print(totalE['bc'])
+    print(totalE['bc'])
 
     print(provtotal)
     # Compute the totals for different provinces.

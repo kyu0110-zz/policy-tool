@@ -118,7 +118,7 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
         return ee.Image(first).add(ee.Image(image))
 
     #total_emissions = monthly_dm.sum().reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).multiply(ee.Image.pixelArea()).reduceRegion(reducer=ee.Reducer.sum().unweighted(), geometry=ee.Geometry.Rectangle([90,-20,150,10]), scale=ee.Image(emissions_masked.first()).projection().nominalScale(), maxPixels=1e9)
-    total_emissions = ee.Image(emissions.iterate(sum_collection, ee.Image(0))).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).multiply(ee.Image.pixelArea()).reduceRegion(reducer=ee.Reducer.sum().unweighted(), geometry=ee.Geometry.Rectangle([90,-20,150,10]), crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale(), maxPixels=1e9)
+    total_emissions = ee.Image(emissions_masked.iterate(sum_collection, ee.Image(0))).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).multiply(ee.Image.pixelArea()).reduceRegion(reducer=ee.Reducer.sum().unweighted(), geometry=ee.Geometry.Rectangle([90,-20,150,10]), crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale(), maxPixels=1e9)
     print('total emissions: {}'.format(total_emissions.getInfo()))
 
     return emissions, total_emissions

@@ -419,15 +419,19 @@ smoke.App.prototype.drawHealthChart = function() {
         console.info(smoke.App.receptor)
         if (smoke.App.emissYear < 2010) {
             var bau_index = 0
-        } else if (smoke.App.emissYear < 2025) {
+        } else if (smoke.App.emissYear < 2015) {
             var bau_index = 1
+        } else if (smoke.App.emissYear < 2020) {
+            var bau_index = 2
+        } else if (smoke.App.emissYear < 2025) {
+            var bau_index = 3
         } else if (smoke.App.emissYear < 2030) {
-            var bau_indx = 2
+            var bau_index = 4
         }
         var healthdata = google.visualization.arrayToDataTable([
               ['Age group', 'Age 0-1', 'Age 1-4', 'Age 25+', { role: 'annotation' } ],
               ['Business as usual', smoke.App.BAU[0][smoke.App.receptor][bau_index][smoke.App.metYear-2005], smoke.App.BAU[1][smoke.App.receptor][bau_index][smoke.App.metYear-2005], smoke.App.BAU[2][smoke.App.receptor][bau_index][smoke.App.metYear-2005], ''],
-              ['Current scenario', smoke.App.endeaths[1]+smoke.App.lndeaths[1]+smoke.App.pndeaths[1], smoke.App.a14deaths[1], smoke.App.adultdeaths[1], '']
+              ['Current scenario', (smoke.App.endeaths[1]+smoke.App.lndeaths[1]+smoke.App.pndeaths[1]).toFixed(0), smoke.App.a14deaths[1].toFixed(0), smoke.App.adultdeaths[1].toFixed(0), '']
         ]);
 
         var options = {
@@ -844,9 +848,16 @@ smoke.App.ids = [];
 smoke.App.receptor = 'Singapore'
 smoke.App.metYear = 2006
 smoke.App.emissYear = 2006
-smoke.App.BAU = [{'Indonesia': [[539, 1701, 152, 126, 889], [775, 2622, 185, 135, 1286], [816, 2715, 187, 135, 1331]], 'Malaysia': [[4, 17, 1, 1, 10], [6, 25, 1, 2, 13], [7, 27, 1, 2, 13]], 'Singapore': [[0, 1, 1, 0, 1], [0, 2, 0, 0, 1], [0, 2, 0, 0, 1]]}, 
-        {'Indonesia': [[133, 419, 38, 31, 219], [191, 646, 46, 33, 317], [201, 669, 46, 33, 328]], 'Malaysia': [[2, 7, 0, 1, 4], [3, 10, 0, 1, 5], [3, 11, 0, 1, 5]], 'Singapore': [[0, 1, 0, 0, 0], [0, 1, 0, 0, 0], [0, 1, 0, 0, 0,]]}, 
-            {'Indonesia': [[20623, 65124, 5832, 4838, 34046], [29680, 100372, 7091, 5171, 49220], [31225, 103926, 7183, 5171, 50963]], 'Malaysia': [[1505, 6472, 303, 542, 3717], [2404, 9396, 334, 583, 4722], [2572, 9986, 338, 561, 4792]], 'Singapore': [[348, 1471, 59, 84, 778], [626, 2232, 75, 7116, 1133], [663, 2350, 77, 115, 1193]]}];
+smoke.App.BAU = [
+        {'Indonesia': [[539, 1701, 152, 126, 889], [617, 1805, 155, 125, 940], [690, 1906, 160, 127, 992], [757, 2000, 165, 129, 1040], [820, 2078, 168, 129, 1074]], 
+         'Malaysia': [[4, 17, 1, 1, 10], [6, 20, 1, 2, 11], [7, 22, 1, 2, 12], [8, 24, 1, 2, 13], [9, 25, 1, 2, 14]], 
+         'Singapore': [[0, 1, 1, 0, 1], [0, 1, 0, 0, 1], [0, 1, 0, 0, 1], [1, 1, 0, 0, 1], [1, 2, 0, 0, 1]]}, 
+        {'Indonesia': [[133, 419, 38, 31, 219], [152, 445, 46, 33, 317], [170, 469, 39, 31, 244], [187, 493, 41, 32, 256], [202, 512, 41, 32, 265]], 
+         'Malaysia': [[2, 7, 0, 1, 4], [2, 8, 0, 1, 4], [3, 9, 0, 1, 5], [3, 9, 0, 1, 5], [4, 10, 0, 1, 5]], 
+         'Singapore': [[0, 1, 0, 0, 0], [0, 1, 0, 0, 0], [0, 1, 0, 0, 0], [0, 1, 0, 0, 0], [0, 1, 0, 0, 0]]}, 
+        {'Indonesia': [[20623, 65124, 5832, 4838, 34046], [23607, 69098, 5940, 4788, 36001], [26397, 72953, 6122, 4863, 37958], [28989, 76552, 6311, 4941, 39798], [31388, 79552, 6417, 4955, 41113]], 
+         'Malaysia': [[1505, 6472, 303, 542, 3717], [2082, 7288, 321, 565, 4118], [2600, 8057, 341, 584, 4505], [3075, 8803, 360, 598, 4901], [3501, 9448, 374, 609, 5206]], 
+         'Singapore': [[348, 1471, 59, 84, 778], [509, 1658, 68, 104, 901], [634, 1804, 72, 110, 991], [757, 1956, 75, 112, 1082], [876, 2094, 80, 120, 1173]]}];
 
 smoke.App.HEALTH = false;
 smoke.App.GEOSCHEM = true;
