@@ -122,6 +122,9 @@ smoke.App = function(mapType, boundaries) {
   $('#populationdensity').click(this.handleLayerSwitchClick.bind(this, "HEALTH"));
   $('#baselinemortality').click(this.handleLayerSwitchClick.bind(this, "HEALTH"));
 
+  // layer UI: BRG sites toggle
+  $('#brg').click(this.handleBRGtoggle.bind(this));
+
 };
 
 
@@ -185,6 +188,55 @@ smoke.App.prototype.addBRG = function(regions) {
 
 };
 
+/**
+ * Toggles BRG layer
+ */
+smoke.App.prototype.handleBRGtoggle = function() {
+  console.info(smoke.App.BRG)
+  if (smoke.App.BRG == false) {
+  this.map.data.setStyle(function(feature) {
+      var s = feature.getProperty('sum');
+      var t5 = feature.getProperty('top5');
+      if (s > 0 && t5 > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'orange',
+              'strokeColor': 'orange',
+              'strokeOpacity': 1.0
+          };
+      } else if (s > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'grey',
+              'strokeColor': 'grey',
+              'strokeOpacity': 1.0
+        };
+      } else {
+        return {
+          //'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
+          'strokeWeight': 2,
+          'fillOpacity': 0.0,
+          'fillColor': 'red',
+          'strokeColor': 'red',
+          'strokeOpacity': 0.0
+        };
+      };
+    });
+  smoke.App.BRG = true;
+  } else {
+      this.map.data.setStyle(function(feature) {
+
+        return {
+        'strokeOpacity': 0.0,
+        'fillOpacity': 0.0
+    };
+  });
+  smoke.App.BRG = false;
+};
+};
+
 smoke.App.prototype.openInfowindow = function(event) {
       s = event.feature.getProperty('sum')
       console.info(s)
@@ -225,7 +277,6 @@ smoke.App.prototype.addBoundaries = function(regions) {
           };
       } else {
         return {
-          //'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
           'strokeWeight': 2,
           'fillOpacity': 0.0,
           'fillColor': 'red',
@@ -237,8 +288,10 @@ smoke.App.prototype.addBoundaries = function(regions) {
 };
 
 smoke.App.prototype.handlePeatlandHover = function(event) {
+  if (smoke.App.BRG == false) {
     this.map.data.setStyle(function(feature) {
-        var regionid = feature.getProperty('objectid_1');
+
+      var regionid = feature.getProperty('objectid_1');
         if (regionid == 'peatland') {
             fillopacity = 0.3;
             opacity = 0.6;
@@ -247,7 +300,6 @@ smoke.App.prototype.handlePeatlandHover = function(event) {
             opacity = 0.0;
         };
      return {
-          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
          'strokeWeight': 2,
          'fillOpacity': fillopacity,
          'fillColor': 'red',
@@ -255,9 +307,49 @@ smoke.App.prototype.handlePeatlandHover = function(event) {
          'strokeOpacity': opacity
      };
  });
+  } else {
+    this.map.data.setStyle(function(feature) {
+      var s = feature.getProperty('sum');
+      var t5 = feature.getProperty('top5');
+      if (s > 0 && t5 > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'orange',
+              'strokeColor': 'orange',
+              'strokeOpacity': 1.0
+          };
+      } else if (s > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'grey',
+              'strokeColor': 'grey',
+              'strokeOpacity': 1.0
+        };
+      } else {
+        var regionid = feature.getProperty('objectid_1');
+        if (regionid == 'peatland') {
+            fillopacity = 0.3;
+            opacity = 0.6;
+        } else {
+            fillopacity = 0.0;             
+            opacity = 0.0;
+        };
+        return {
+         'strokeWeight': 2,
+         'fillOpacity': fillopacity,
+         'fillColor': 'red',
+         'strokeColor': 'red',
+         'strokeOpacity': opacity
+        };
+      };
+    });
+  };
 };
 
 smoke.App.prototype.handleLoggingHover = function(event) {
+    if (smoke.App.BRG == false) {
     this.map.data.setStyle(function(feature) {
         var regionid = feature.getProperty('objectid_1');
         if (regionid == 'logging') {
@@ -268,83 +360,239 @@ smoke.App.prototype.handleLoggingHover = function(event) {
             opacity = 0.0;
         };
      return {
-          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
          'strokeWeight': 2,
          'fillOpacity': fillopacity,
          'fillColor': 'red',
          'strokeColor': 'red',
          'strokeOpacity': opacity
      };
- });
+    });
+    } else {
+        this.map.data.setStyle(function(feature) {
+      var s = feature.getProperty('sum');
+      var t5 = feature.getProperty('top5');
+      if (s > 0 && t5 > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'orange',
+              'strokeColor': 'orange',
+              'strokeOpacity': 1.0
+          };
+      } else if (s > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'grey',
+              'strokeColor': 'grey',
+              'strokeOpacity': 1.0
+        };
+      } else {
+        var regionid = feature.getProperty('objectid_1');
+        if (regionid == 'logging') {
+            fillopacity = 0.3;
+            opacity = 0.6;
+        } else {
+            fillopacity = 0.0;             
+            opacity = 0.0;
+        };
+        return {
+         'strokeWeight': 2,
+         'fillOpacity': fillopacity,
+         'fillColor': 'red',
+         'strokeColor': 'red',
+         'strokeOpacity': opacity
+        };
+     };
+    });
+    };
 };
 
 smoke.App.prototype.handleOilpalmHover = function(event) {
-    this.map.data.setStyle(function(feature) {
-        var regionid = feature.getProperty('objectid_1');
-        if (regionid == 'oilpalm') {
-            fillopacity = 0.3;
-            opacity = 0.6;
+    if (smoke.App.BRG == false) {
+        this.map.data.setStyle(function(feature) {
+            var regionid = feature.getProperty('objectid_1');
+            if (regionid == 'oilpalm') {
+                fillopacity = 0.3;
+                opacity = 0.6;
+            } else {
+                fillopacity = 0.0;             
+                opacity = 0.0;
+            };
+        return {
+            'strokeWeight': 2,
+            'fillOpacity': fillopacity,
+            'fillColor': 'red',
+            'strokeColor': 'red',
+            'strokeOpacity': opacity
+            };
+        });
+    } else {
+        this.map.data.setStyle(function(feature) {
+        var s = feature.getProperty('sum');
+        var t5 = feature.getProperty('top5');
+        if (s > 0 && t5 > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'orange',
+              'strokeColor': 'orange',
+              'strokeOpacity': 1.0
+          };
+        } else if (s > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'grey',
+              'strokeColor': 'grey',
+              'strokeOpacity': 1.0
+            };
         } else {
-            fillopacity = 0.0;             
-            opacity = 0.0;
-        };
-     return {
-          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
-         'strokeWeight': 2,
-         'fillOpacity': fillopacity,
-         'fillColor': 'red',
-         'strokeColor': 'red',
-         'strokeOpacity': opacity
-     };
- });
+            var regionid = feature.getProperty('objectid_1');
+            if (regionid == 'oilpalm') {
+                fillopacity = 0.3;
+                opacity = 0.6;
+            } else {
+                fillopacity = 0.0;             
+                opacity = 0.0;
+            };
+            return {
+                'strokeWeight': 2,
+                'fillOpacity': fillopacity,
+                'fillColor': 'red',
+                'strokeColor': 'red',
+                'strokeOpacity': opacity
+                };
+            };
+        });
+    };
 };
 
 smoke.App.prototype.handleConservationHover = function(event) {
-    this.map.data.setStyle(function(feature) {
-        var regionid = feature.getProperty('objectid_1');
-        if (regionid == 'conservation') {
-            fillopacity = 0.3;
-            opacity = 0.6;
+    if (smoke.App.BRG == false) {
+        this.map.data.setStyle(function(feature) {
+            var regionid = feature.getProperty('objectid_1');
+            if (regionid == 'conservation') {
+                fillopacity = 0.3;
+                opacity = 0.6;
+            } else {
+                fillopacity = 0.0;             
+                opacity = 0.0;
+            };
+            return {
+                'strokeWeight': 2,
+                'fillOpacity': fillopacity,
+                'fillColor': 'red',
+                'strokeColor': 'red',
+                'strokeOpacity': opacity
+            };
+        });
+    } else {
+        this.map.data.setStyle(function(feature) {
+        var s = feature.getProperty('sum');
+        var t5 = feature.getProperty('top5');
+        if (s > 0 && t5 > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'orange',
+              'strokeColor': 'orange',
+              'strokeOpacity': 1.0
+              };
+        } else if (s > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'grey',
+              'strokeColor': 'grey',
+              'strokeOpacity': 1.0
+            };
         } else {
-            fillopacity = 0.0;             
-            opacity = 0.0;
+            var regionid = feature.getProperty('objectid_1');
+            if (regionid == 'conservation') {
+                fillopacity = 0.3;
+                opacity = 0.6;
+            } else {
+                fillopacity = 0.0;             
+                opacity = 0.0;
+            };
+            return {
+                'strokeWeight': 2,
+                'fillOpacity': fillopacity,
+                'fillColor': 'red',
+                'strokeColor': 'red',
+                'strokeOpacity': opacity
+            };
         };
-     return {
-          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
-         'strokeWeight': 2,
-         'fillOpacity': fillopacity,
-         'fillColor': 'red',
-         'strokeColor': 'red',
-         'strokeOpacity': opacity
-     };
- });
+    });
+    };
 };
 
 smoke.App.prototype.handleTimberHover = function(event) {
-    this.map.data.setStyle(function(feature) {
-        var regionid = feature.getProperty('objectid_1');
-        if (regionid == 'timber') {
-            fillopacity = 0.3;
-            opacity = 0.6;
-        } else {
-            fillopacity = 0.0;             
-            opacity = 0.0;
-        };
-     return {
-          'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
-         'strokeWeight': 2,
-         'fillOpacity': fillopacity,
-         'fillColor': 'red',
-         'strokeColor': 'red',
-         'strokeOpacity': opacity
-     };
- });
+    if (smoke.App.BRG == false) {
+        this.map.data.setStyle(function(feature) {
+            var regionid = feature.getProperty('objectid_1');
+            if (regionid == 'timber') {
+                fillopacity = 0.3;
+                opacity = 0.6;
+            } else {
+                fillopacity = 0.0;             
+                opacity = 0.0;
+            };
+            return {
+                'strokeWeight': 2,
+                'fillOpacity': fillopacity,
+                'fillColor': 'red',
+                'strokeColor': 'red',
+                'strokeOpacity': opacity
+            };
+        }); 
+    } else {
+        this.map.data.setStyle(function(feature) {
+            var s = feature.getProperty('sum');
+            var t5 = feature.getProperty('top5');
+            if (s > 0 && t5 > 0) {
+                return {
+                    'strokeWeight': 2,
+                    'fillOpacity': 0.0,
+                    'fillColor': 'orange',
+                    'strokeColor': 'orange',
+                    'strokeOpacity': 1.0
+                };
+            } else if (s > 0) {
+                return {
+                    'strokeWeight': 2,
+                    'fillOpacity': 0.0,
+                    'fillColor': 'grey',
+                    'strokeColor': 'grey',
+                    'strokeOpacity': 1.0
+                };
+            } else {
+                var regionid = feature.getProperty('objectid_1');
+                if (regionid == 'timber') {
+                    fillopacity = 0.3;
+                    opacity = 0.6;
+                } else {
+                    fillopacity = 0.0;             
+                    opacity = 0.0;
+                };
+                return {
+                    'strokeWeight': 2,
+                    'fillOpacity': fillopacity,
+                    'fillColor': 'red',
+                    'strokeColor': 'red',
+                    'strokeOpacity': opacity
+                };
+            };
+        }); 
+    };
 };
 
 /** 
  * Handles a click on a source region. 
  */
 smoke.App.prototype.handlePolygonOut = function(event) { 
+    if (smoke.App.BRG == false) {
     this.map.data.setStyle(function(feature) {
       return {
           'icon': {path: google.maps.SymbolPath.CIRCLE, scale: 3},
@@ -355,6 +603,38 @@ smoke.App.prototype.handlePolygonOut = function(event) {
           'strokeOpacity': 0.0
       };
     });
+    } else {
+        this.map.data.setStyle(function(feature) {
+        var s = feature.getProperty('sum');
+        var t5 = feature.getProperty('top5');
+
+        if (s > 0 && t5 > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'orange',
+              'strokeColor': 'orange',
+              'strokeOpacity': 1.0
+          };
+        } else if (s > 0) {
+          return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'grey',
+              'strokeColor': 'grey',
+              'strokeOpacity': 1.0
+          };
+        } else {
+            return {
+            'strokeWeight': 3,
+            'fillOpacity': 0.0,
+            'fillColor': 'red',
+            'strokeColor': 'red',
+            'strokeOpacity': 0.0
+            };
+        };
+    });
+    };
 };
 
 /**
@@ -617,6 +897,10 @@ smoke.App.prototype.newScenario = function() {
         map.overlayMapTypes.push(mapType);
         };
 
+        // reset BRG to true 
+        smoke.App.BRG = true;
+        //this.addBRG(['brg_grid']);
+
         // Redraw charts
         $('.panel').hide();
         $('.detailstab').show(); 
@@ -849,13 +1133,13 @@ smoke.App.receptor = 'Singapore'
 smoke.App.metYear = 2006
 smoke.App.emissYear = 2006
 smoke.App.BAU = [
-        {'Indonesia': [[539, 1701, 152, 126, 889], [617, 1805, 155, 125, 940], [690, 1906, 160, 127, 992], [757, 2000, 165, 129, 1040], [820, 2078, 168, 129, 1074]], 
+        {'Indonesia': [[441, 1439, 136, 111, 745], [514, 1534, 139, 111, 794], [582, 1622, 144, 114, 841], [646, 1704, 149, 115, 881], [704, 1775, 152, 116, 913]], 
          'Malaysia': [[4, 17, 1, 1, 10], [6, 20, 1, 2, 11], [7, 22, 1, 2, 12], [8, 24, 1, 2, 13], [9, 25, 1, 2, 14]], 
          'Singapore': [[0, 1, 1, 0, 1], [0, 1, 0, 0, 1], [0, 1, 0, 0, 1], [1, 1, 0, 0, 1], [1, 2, 0, 0, 1]]}, 
-        {'Indonesia': [[133, 419, 38, 31, 219], [152, 445, 46, 33, 317], [170, 469, 39, 31, 244], [187, 493, 41, 32, 256], [202, 512, 41, 32, 265]], 
+        {'Indonesia': [[109, 354, 33, 27, 184], [127, 378, 34, 27, 196], [143, 399, 36, 28, 207], [159, 420, 37, 28, 217], [173, 437, 37, 29, 225]], 
          'Malaysia': [[2, 7, 0, 1, 4], [2, 8, 0, 1, 4], [3, 9, 0, 1, 5], [3, 9, 0, 1, 5], [4, 10, 0, 1, 5]], 
          'Singapore': [[0, 1, 0, 0, 0], [0, 1, 0, 0, 0], [0, 1, 0, 0, 0], [0, 1, 0, 0, 0], [0, 1, 0, 0, 0]]}, 
-        {'Indonesia': [[20623, 65124, 5832, 4838, 34046], [23607, 69098, 5940, 4788, 36001], [26397, 72953, 6122, 4863, 37958], [28989, 76552, 6311, 4941, 39798], [31388, 79552, 6417, 4955, 41113]], 
+        {'Indonesia': [[16890, 55075, 5189, 4258, 28536], [19675, 58706, 5339, 4265, 30414], [22278, 62077, 5523, 4354, 33207], [24714, 65242, 5696, 4413, 33744], [26959, 67970, 5807, 4430, 34957]], 
          'Malaysia': [[1505, 6472, 303, 542, 3717], [2082, 7288, 321, 565, 4118], [2600, 8057, 341, 584, 4505], [3075, 8803, 360, 598, 4901], [3501, 9448, 374, 609, 5206]], 
          'Singapore': [[348, 1471, 59, 84, 778], [509, 1658, 68, 104, 901], [634, 1804, 72, 110, 991], [757, 1956, 75, 112, 1082], [876, 2094, 80, 120, 1173]]}];
 
@@ -863,6 +1147,7 @@ smoke.App.HEALTH = false;
 smoke.App.GEOSCHEM = true;
 smoke.App.EMISSIONS = false;
 smoke.App.LANDCOVER = false;
+smoke.App.BRG = true;
 
 /**
  * @type {Array} An array of Google Map styles. See:
