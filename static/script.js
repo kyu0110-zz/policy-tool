@@ -120,7 +120,9 @@ smoke.App = function(mapType, boundaries) {
   // layer UI: health impacts density toggle
   $('#health').click(this.handleLayerClick.bind(this, "HEALTH"));
   $('#populationdensity').click(this.handleLayerSwitchClick.bind(this, "HEALTH"));
+  $('#populationdensity').click(this.handleLegendSwitch.bind(this, "populationdensity"));
   $('#baselinemortality').click(this.handleLayerSwitchClick.bind(this, "HEALTH"));
+  $('#baselinemortality').click(this.handleLegendSwitch.bind(this, "baselinemortality"));
 
   // layer UI: BRG sites toggle
   $('#brg').click(this.handleBRGtoggle.bind(this));
@@ -991,13 +993,24 @@ smoke.App.prototype.handleLayerSwitchClick = function(layername) {
 smoke.App.prototype.handleLegendSwitch = function(layername) {
     console.info(layername);
     if (layername=='sensitivity') {
-       max = 0.01
-       unit = '(ug/m^3)  / (g emiss.)';
-    } else {
-       max = 0.05
-       unit = 'ug/m^3';
+       max = 0.01;
+       unit = '(ug/m\u00B3)  /\r\n (g emiss.)';
+       region = '.GClegend'; 
+    } else if (layername=='PM') {
+       max = 0.05;
+       unit = 'ug/m\u00B3';
+       region = '.GClegend';
+    } else if (layername=='populationdensity') {
+        max = 1000;
+        unit = '/km\u00B2';
+        region = '.healthlegend';
+    } else if (layername=='baselinemortality') {
+        max = 10;
+        unit = '/1000 people';
+        region = '.healthlegend';
     };
-    $('.GClegend').show().text(max + ' ' + unit);
+    console.info(region)
+    $(region).show().text(max + ' ' + unit);
 };
 
 smoke.App.prototype.addLegend = function() {

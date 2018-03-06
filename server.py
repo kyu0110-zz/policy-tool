@@ -248,7 +248,7 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
     tokens.append([mapid['token']])
 
     baseline_mortality = getBaselineMortality()
-    mapid = GetMapId(baseline_mortality, maxVal=5, color='FFFFFF, a5ffd8, 3cff00, 30ce00, 218b00, 124000')
+    mapid = GetMapId(baseline_mortality, maxVal=1e-2, color='FFFFFF, a5ffd8, 3cff00, 30ce00, 218b00, 124000')
     mapIds[3].append(mapid['mapid'])
     tokens[3].append(mapid['token'])
 
@@ -438,7 +438,9 @@ def getProvinceBoundaries():
     #return fc.getInfo()
 
 def getBaselineMortality():
-    return ee.Image('users/karenyu/baseline_mortality')
+    img = ee.Image('users/karenyu/GPW2005').select('b13')
+    #return ee.Image('users/karenyu/baseline_mortality')
+    return img
 
 
 def getPopulationDensity(year):
