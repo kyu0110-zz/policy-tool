@@ -181,7 +181,7 @@ body,
     width: 100px;
     height: 50px;
     left: -25px;
-    top: 150px;
+    top: 160px;
     transform: rotate(90deg);
     font-size: 20px;
     padding: 0px;
@@ -194,7 +194,7 @@ body,
     width: 100px;
     height: 50px;
     right: -25px;
-    top: 150px;
+    top: 160px;
     transform: rotate(270deg);
     font-size: 20px;
     padding: 0px;
@@ -206,7 +206,7 @@ body,
   .trendy .scenarioUI {
     width: 400px;
     height: 400px;
-    top: 126px;
+    top: 138px;
     right: 0px;
     overflow: hidden;
   }
@@ -234,7 +234,7 @@ body,
   .trendy .panel {
     width: 800px;
     left: 0px;
-    top: 126px;
+    top: 138px;
     padding: 14px;
     opacity: 1.0;
   }

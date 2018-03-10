@@ -993,24 +993,29 @@ smoke.App.prototype.handleLayerSwitchClick = function(layername) {
 smoke.App.prototype.handleLegendSwitch = function(layername) {
     console.info(layername);
     if (layername=='sensitivity') {
-       max = 0.01;
-       unit = '(ug/m\u00B3)  /\r\n (g emiss.)';
-       region = '.GClegend'; 
+       var max = '0.01 ug m\u207B\u00B3';
+       var unit = "g\u207B\u00B9 emiss.";
+       var region = '.GClegend'; 
+       var region2 = '.GClegendunit';
     } else if (layername=='PM') {
-       max = 0.05;
-       unit = 'ug/m\u00B3';
-       region = '.GClegend';
+       var max = 0.05;
+       var unit = 'ug  m\u207B\u00B3';
+       var region = '.GClegend';
+       var region2 = '.GClegendunit';
     } else if (layername=='populationdensity') {
-        max = 1000;
-        unit = '/km\u00B2';
-        region = '.healthlegend';
+        var max = 1000;
+        var unit = 'km\u207B\u00B2';
+        var region = '.healthlegend';
+       var region2 = '.healthlegendunit';
     } else if (layername=='baselinemortality') {
-        max = 10;
-        unit = '/1000 people';
-        region = '.healthlegend';
+        var max = 10 /1000;
+        var unit = 'people';
+        var region = '.healthlegend';
+       var region2 = '.healthlegendunit';
     };
     console.info(region)
-    $(region).show().text(max + ' ' + unit);
+    $(region).show().text(max);
+    $(region2).show().text(unit);
 };
 
 smoke.App.prototype.addLegend = function() {
