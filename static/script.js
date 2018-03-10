@@ -160,7 +160,7 @@ smoke.App.prototype.addBRG = function(regions) {
   this.map.data.setStyle(function(feature) {
       var s = feature.getProperty('sum');
       var t5 = feature.getProperty('top5');
-      if (s > 0 && t5 > 0) {
+      if (s > 0 && t5 != null && t5.indexOf(smoke.App.receptor) >= 0) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
@@ -199,7 +199,7 @@ smoke.App.prototype.handleBRGtoggle = function() {
   this.map.data.setStyle(function(feature) {
       var s = feature.getProperty('sum');
       var t5 = feature.getProperty('top5');
-      if (s > 0 && t5 > 0) {
+      if (s > 0 && t5 != null && t5.indexOf(smoke.App.receptor) >= 0) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
@@ -313,7 +313,7 @@ smoke.App.prototype.handlePeatlandHover = function(event) {
     this.map.data.setStyle(function(feature) {
       var s = feature.getProperty('sum');
       var t5 = feature.getProperty('top5');
-      if (s > 0 && t5 > 0) {
+      if (s > 0 && t5 != null && t5.indexOf(smoke.App.receptor) >= 0) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
@@ -373,7 +373,7 @@ smoke.App.prototype.handleLoggingHover = function(event) {
         this.map.data.setStyle(function(feature) {
       var s = feature.getProperty('sum');
       var t5 = feature.getProperty('top5');
-      if (s > 0 && t5 > 0) {
+      if (s > 0 && t5 != null && t5.indexOf(smoke.App.receptor) >= 0) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
@@ -433,7 +433,7 @@ smoke.App.prototype.handleOilpalmHover = function(event) {
         this.map.data.setStyle(function(feature) {
         var s = feature.getProperty('sum');
         var t5 = feature.getProperty('top5');
-        if (s > 0 && t5 > 0) {
+        if (s > 0 && t5 != null && t5.indexOf(smoke.App.receptor) >= 0) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
@@ -493,7 +493,7 @@ smoke.App.prototype.handleConservationHover = function(event) {
         this.map.data.setStyle(function(feature) {
         var s = feature.getProperty('sum');
         var t5 = feature.getProperty('top5');
-        if (s > 0 && t5 > 0) {
+        if (s > 0 && t5 != null && t5.indexOf(smoke.App.receptor) >= 0) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
@@ -553,7 +553,7 @@ smoke.App.prototype.handleTimberHover = function(event) {
         this.map.data.setStyle(function(feature) {
             var s = feature.getProperty('sum');
             var t5 = feature.getProperty('top5');
-            if (s > 0 && t5 > 0) {
+            if (s > 0 && t5 != null && t5.indexOf(smoke.App.receptor) >= 0) {
                 return {
                     'strokeWeight': 2,
                     'fillOpacity': 0.0,
@@ -610,7 +610,7 @@ smoke.App.prototype.handlePolygonOut = function(event) {
         var s = feature.getProperty('sum');
         var t5 = feature.getProperty('top5');
 
-        if (s > 0 && t5 > 0) {
+        if (s > 0 && t5 != null && t5.indexOf(smoke.App.receptor) >=0) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
@@ -899,9 +899,36 @@ smoke.App.prototype.newScenario = function() {
         map.overlayMapTypes.push(mapType);
         };
 
-        // reset BRG to true 
-        smoke.App.BRG = true;
-        //this.addBRG(['brg_grid']);
+        // re-colors BRG 
+        map.data.setStyle(function(feature) {
+            var s = feature.getProperty('sum');
+            var t5 = feature.getProperty('top5');
+            if (s > 0 && t5 != null && t5.indexOf(smoke.App.receptor) >= 0) {
+            return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'orange',
+              'strokeColor': 'orange',
+              'strokeOpacity': 1.0
+            };
+            } else if (s > 0) {
+              return {
+              'strokeWeight': 2,
+              'fillOpacity': 0.0,
+              'fillColor': 'grey',
+              'strokeColor': 'grey',
+              'strokeOpacity': 1.0
+            };
+            } else {
+            return {
+                'strokeWeight': 2,
+                'fillOpacity': 0.0,
+                'fillColor': 'red',
+                'strokeColor': 'red',
+                'strokeOpacity': 0.0
+           };
+        };
+      });
 
         // Redraw charts
         $('.panel').hide();
