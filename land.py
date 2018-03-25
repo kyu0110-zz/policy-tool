@@ -1,12 +1,12 @@
 import ee
 
 def getLandcoverData():
-    present = ee.Image('users/karenyu/marHanS2005_sin')
-    BAU2010 = ee.Image('users/karenyu/marHanS2010_sin')
-    BAU2015 = ee.Image('users/karenyu/future_LULC_MarHan2')
-    BAU2020 = ee.Image('users/karenyu/future_LULC_MarHan3')
-    BAU2025 = ee.Image('users/karenyu/future_LULC_MarHan4')
-    BAU2030 = ee.Image('users/karenyu/future_LULC_MarHan5')
+    present = ee.Image('projects/IndonesiaPolicyTool/marHanS2005')
+    BAU2010 = ee.Image('projects/IndonesiaPolicyTool/marHanS2010')
+    BAU2015 = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2015')
+    BAU2020 = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2020')
+    BAU2025 = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2025')
+    BAU2030 = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2030')
 
     sld_ramp = '<RasterSymbolizer>' + \
           '<ColorMap type="intervals" extended="false" >' + \

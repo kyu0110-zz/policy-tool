@@ -279,7 +279,7 @@ def GetMapId(image, maxVal=0.1, maskValue=0.000000000001, color='FFFFFF, 220066'
 def getSensitivity(receptor, year, monthly=True):
     """Gets sensitivity for a particular receptor and meteorological year."""
     if monthly:
-        sensitivities = ee.ImageCollection('users/karenyu/'+receptor+'_monthly_sensitivities').filterDate(str(year)+'-01-01', str(year)+'-12-31').sort('system:time_start', True) # sort in ascending order
+        sensitivities = ee.ImageCollection('projects/IndonesiaPolicyTool/'+receptor+'_monthly_sensitivities').filterDate(str(year)+'-01-01', str(year)+'-12-31').sort('system:time_start', True) # sort in ascending order
         def divide_by_days(image):
             ndays = ee.Number(image.get('ndays'))
             date = image.get('system:time_start')
@@ -289,7 +289,7 @@ def getSensitivity(receptor, year, monthly=True):
 
         return ee.ImageCollection(sensitivities.map(divide_by_days));
     else:
-        sensitivities = ee.ImageCollection('users/karenyu/'+receptor+'_sensitivities').filterDate(str(year)+'-01-01', str(year)+'-12-31')
+        sensitivities = ee.ImageCollection('projects/IndonesiaPolicyTool/'+receptor+'_sensitivities').filterDate(str(year)+'-01-01', str(year)+'-12-31')
         return sensitivities
 
 
@@ -297,7 +297,7 @@ def getDailyPM(sensitivities):
     """Returns daily PM."""
 
     # get emissions
-    emiss = ee.Image('users/karenyu/placeholder_emissions')
+    emiss = ee.Image(0)
 
     def computeDailySensitivity(sensitivity, prev_sensitivities):
         # first sum up all previous sensitivities, then subtract from current value
@@ -334,9 +334,7 @@ def getMonthlyPM(sensitivities, emiss):
     """Returns monthly PM"""
 
     # get emissions
-    #emiss = ee.ImageCollection(ee.List([ee.Image('users/karenyu/placeholder_emissions')]*12))
-
-    mask = ee.Image('users/karenyu/logging_concessions')
+    mask = ee.Image('projects/IndonesiaPolicyTool/logging_concessions')
     print(mask.projection().nominalScale().getInfo())
 
     print("sensitivities nominal scale")
@@ -438,14 +436,13 @@ def getProvinceBoundaries():
     #return fc.getInfo()
 
 def getBaselineMortality():
-    img = ee.Image('users/karenyu/GPW2005').select('b13')
-    #return ee.Image('users/karenyu/baseline_mortality')
+    img = ee.Image('projects/IndonesiaPolicyTool/GPW2005').select('b13')
     return img
 
 
 def getPopulationDensity(year):
     #img = ee.Image(POPULATION_DENSITY_COLLECTION_ID + '/' + year).select('population-density')
-    img = ee.Image('users/karenyu/GPW2005').select('b1')
+    img = ee.Image('projects/IndonesiaPolicyTool/GPW2005').select('b1')
     return img
 
 ###############################################################################

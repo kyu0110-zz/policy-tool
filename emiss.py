@@ -23,7 +23,7 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
     if scenario=='GFED4':
         # gfed in kg DM
         #monthly_dm = ee.ImageCollection('users/tl2581/gfedv4s').filter(ee.Filter.rangeContains('system:index', 'DM_'+str(year)+'01', 'DM_'+str(year)+'12'))
-        monthly_dm = ee.ImageCollection('users/karenyu/gfed4').filterDate(str(year) + '-01-1', str(year) + '-12-31').sort('system:time_start', True)
+        monthly_dm = ee.ImageCollection('projects/IndonesiaPolicyTool/gfed4').filterDate(str(year) + '-01-1', str(year) + '-12-31').sort('system:time_start', True)
     else:
         monthly_dm = getDownscaled(year, metYear, peatmask)
 
@@ -127,10 +127,6 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
 def getDownscaled(emissyear, metyear, peatmask):
     """Scales the transition emissions from the appropriate 5-year chunk by the IAV of the meteorological year"""
 
-    # read in IAV based on metYear
-    #IAV = ee.Image('users/karenyu/dm_fractional_'+str(metyear))
-
-    print(emissyear)
     # find closest year for land-use scenarios
     if emissyear >= 2025:
         start_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2025')
@@ -173,7 +169,7 @@ def getTransition(initialLandcover, finalLandcover, peatmask, year):
     suma_mask = islands.eq(ee.Image(2)).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
     kali_mask = islands.eq(ee.Image(3)).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
     #indo_mask = islands.eq(ee.Image(1)).add(islands.gt(ee.Image(3))).gt(0).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
-    indo_mask = ee.Image('users/karenyu/indonesia').reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
+    indo_mask = ee.Image('projects/IndonesiaPolicyTool/indonesia').reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale())
     # print area
     print("Area: {}".format(indo_mask.multiply(ee.Image.pixelArea()).reduceRegion(geometry=ee.Geometry.Rectangle([90,-20,150,10]), crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale(), reducer=ee.Reducer.sum(), maxPixels=1e9).getInfo()))
 
@@ -247,14 +243,14 @@ def getTransition(initialLandcover, finalLandcover, peatmask, year):
 def getLogging():
     """Get boundaries for logging concessions"""
     #fc = ee.FeatureCollection('ft:1QgJf-3Vso3hirAnBMknJmEwwZ9-2tHIT62RHqLxX')
-    mask = ee.Image('users/karenyu/logging_concessions')
+    mask = ee.Image('projects/IndonesiaPolicyTool/logging_concessions')
 
     return mask
 
 def getOilPalm():
     """Get boundaries for oil palm concessions"""
     #fc = ee.FeatureCollection('1eKRxDmhsYm-uJ0h_knFqJd7iS-kMhjkpJDBG8URF')
-    mask = ee.Image('users/karenyu/oilpalm')
+    mask = ee.Image('projects/IndonesiaPolicyTool/oilpalm')
 
     return mask
 
@@ -263,7 +259,7 @@ def getTimber():
     #fc = ee.FeatureCollection('1SCflzzfReLipuUttF76z8Ln-1zjvHRn2pKjzt6om')
     #img = fc.reduceToImage(properties=ee.List(['objectid']), reducer=ee.Reducer.count())
 
-    mask = ee.Image('users/karenyu/timber_concession')
+    mask = ee.Image('projects/IndonesiaPolicyTool/timber_concession')
     return mask
 
 def getPeatlands():
@@ -274,14 +270,13 @@ def getPeatlands():
     #mask = ft.reduceToImage(properties=ee.List(['id']), reducer=ee.Reducer.max()).reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).gt(0).expression("(b('max') > 0) ? 1: 0")
     #region = ee.Geometry.Rectangle([90,-20,150,10]);
 
-    #mask = ee.Image('users/karenyu/peatlands')
     mask = ee.Image('projects/IndonesiaPolicyTool/peatlands')
     return mask#.reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).subtract(ee.Image(1)).multiply(ee.Image(-1))
 
 def getConservation():
     """Get boundaries for conservation areas"""
     #fc = ee.FeatureCollection('1mY-MLMGjNqxCqZiY9ek5AVQMdNhLq_Fjh_2fHnkf')
-    mask = ee.Image('users/karenyu/conservation')
+    mask = ee.Image('projects/IndonesiaPolicyTool/conservation')
 
     return mask
 
