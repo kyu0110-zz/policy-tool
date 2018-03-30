@@ -667,7 +667,7 @@ smoke.App.prototype.handlePanelExpand = function(event) {
     var mid = smoke.App.endeaths[1] + smoke.App.lndeaths[1] + smoke.App.pndeaths[1] + smoke.App.a14deaths[1];
     var upper = smoke.App.endeaths[2] + smoke.App.lndeaths[2] + smoke.App.pndeaths[2] + smoke.App.a14deaths[2];
     $('.panel .subtitle').show().text('Attributable deaths: children: ' + mid.toFixed(0) + ' ('+ lower.toFixed(0) + ' - ' + upper.toFixed(0) + '), adult: ' + smoke.App.adultdeaths[1].toFixed(0) + ' ('+smoke.App.adultdeaths[0].toFixed(0) + ' - ' + smoke.App.adultdeaths[2].toFixed(0) + ')');
-    $('.panel .subtitle2').show().text('Economic impact: ' + (smoke.App.adultdeaths[0]*1.7).toFixed(0) + ' - ' + (smoke.App.adultdeaths[2]*1.7).toFixed(0) + ' million USD');
+    $('.panel .subtitle2').show().text('Economic impact: ' + (smoke.App.adultdeaths[1]*1.7).toFixed(0) + ' (' + (smoke.App.adultdeaths[0]*1.7).toFixed(0) + ' - ' + (smoke.App.adultdeaths[2]*1.7).toFixed(0) + ') million USD');
     this.drawTimeSeries();
     this.drawSourcePie();
     this.drawHealthChart();
