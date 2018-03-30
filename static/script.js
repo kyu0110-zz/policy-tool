@@ -664,8 +664,9 @@ smoke.App.prototype.handlePanelExpand = function(event) {
     $('.panel').show();
     $('.panel .title').show().text('Jul - Oct mean PM: ' + smoke.App.total_PM + ' ug/m^3, total oc emissions: ' + (smoke.App.totalE['oc']*1.0e-12).toFixed(2) + ' Tg, total bc emissions: ' + (smoke.App.totalE['bc']*1.0e-12).toFixed(2) + ' Tg');
     var lower = smoke.App.endeaths[0] + smoke.App.lndeaths[0] + smoke.App.pndeaths[0] + smoke.App.a14deaths[0]; 
+    var mid = smoke.App.endeaths[1] + smoke.App.lndeaths[1] + smoke.App.pndeaths[1] + smoke.App.a14deaths[1];
     var upper = smoke.App.endeaths[2] + smoke.App.lndeaths[2] + smoke.App.pndeaths[2] + smoke.App.a14deaths[2];
-    $('.panel .subtitle').show().text('Attributable deaths: ' + lower.toFixed(0) + ' - ' + upper.toFixed(0) + ' (children), ' + smoke.App.adultdeaths[0].toFixed(0) + ' - ' + smoke.App.adultdeaths[2].toFixed(0) + ' (adult)');
+    $('.panel .subtitle').show().text('Attributable deaths: children: ' + mid.toFixed(0) + ' ('+ lower.toFixed(0) + ' - ' + upper.toFixed(0) + '), adult: ' + smoke.App.adultdeaths[1].toFixed(0) + ' ('+smoke.App.adultdeaths[0].toFixed(0) + ' - ' + smoke.App.adultdeaths[2].toFixed(0) + ')');
     $('.panel .subtitle2').show().text('Economic impact: ' + (smoke.App.adultdeaths[0]*1.7).toFixed(0) + ' - ' + (smoke.App.adultdeaths[2]*1.7).toFixed(0) + ' million USD');
     this.drawTimeSeries();
     this.drawSourcePie();
