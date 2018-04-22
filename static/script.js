@@ -164,8 +164,8 @@ smoke.App.prototype.addBRG = function(regions) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
-              'fillColor': 'orange',
-              'strokeColor': 'orange',
+              'fillColor': '#ff0000',
+              'strokeColor': '#ff0000',
               'strokeOpacity': 1.0
           };
       } else if (s > 0) {
@@ -203,8 +203,8 @@ smoke.App.prototype.handleBRGtoggle = function() {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
-              'fillColor': 'orange',
-              'strokeColor': 'orange',
+              'fillColor': '#ff0000',
+              'strokeColor': '#ff0000',
               'strokeOpacity': 1.0
           };
       } else if (s > 0) {
@@ -317,8 +317,8 @@ smoke.App.prototype.handlePeatlandHover = function(event) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
-              'fillColor': 'orange',
-              'strokeColor': 'orange',
+              'fillColor': '#ff0000',
+              'strokeColor': '#ff0000',
               'strokeOpacity': 1.0
           };
       } else if (s > 0) {
@@ -377,8 +377,8 @@ smoke.App.prototype.handleLoggingHover = function(event) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
-              'fillColor': 'orange',
-              'strokeColor': 'orange',
+              'fillColor': '#ff0000',
+              'strokeColor': '#ff0000',
               'strokeOpacity': 1.0
           };
       } else if (s > 0) {
@@ -437,8 +437,8 @@ smoke.App.prototype.handleOilpalmHover = function(event) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
-              'fillColor': 'orange',
-              'strokeColor': 'orange',
+              'fillColor': '#ff0000',
+              'strokeColor': '#ff0000',
               'strokeOpacity': 1.0
           };
         } else if (s > 0) {
@@ -497,8 +497,8 @@ smoke.App.prototype.handleConservationHover = function(event) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
-              'fillColor': 'orange',
-              'strokeColor': 'orange',
+              'fillColor': '#ff0000',
+              'strokeColor': '#ff0000',
               'strokeOpacity': 1.0
               };
         } else if (s > 0) {
@@ -557,8 +557,8 @@ smoke.App.prototype.handleTimberHover = function(event) {
                 return {
                     'strokeWeight': 2,
                     'fillOpacity': 0.0,
-                    'fillColor': 'orange',
-                    'strokeColor': 'orange',
+                    'fillColor': '#ff0000',
+                    'strokeColor': '#ff0000',
                     'strokeOpacity': 1.0
                 };
             } else if (s > 0) {
@@ -614,8 +614,8 @@ smoke.App.prototype.handlePolygonOut = function(event) {
           return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
-              'fillColor': 'orange',
-              'strokeColor': 'orange',
+              'fillColor': '#ff0000',
+              'strokeColor': '#ff0000',
               'strokeOpacity': 1.0
           };
         } else if (s > 0) {
@@ -662,12 +662,12 @@ smoke.App.prototype.handlePolygonClick = function(event) {
 smoke.App.prototype.handlePanelExpand = function(event) {
     $('.detailstab').hide();
     $('.panel').show();
-    $('.panel .title').show().text('Jul - Oct mean PM: ' + smoke.App.total_PM + ' ug/m^3, total oc emissions: ' + (smoke.App.totalE['oc']*1.0e-12).toFixed(2) + ' Tg, total bc emissions: ' + (smoke.App.totalE['bc']*1.0e-12).toFixed(2) + ' Tg');
-    var lower = smoke.App.endeaths[0] + smoke.App.lndeaths[0] + smoke.App.pndeaths[0] + smoke.App.a14deaths[0]; 
-    var mid = smoke.App.endeaths[1] + smoke.App.lndeaths[1] + smoke.App.pndeaths[1] + smoke.App.a14deaths[1];
-    var upper = smoke.App.endeaths[2] + smoke.App.lndeaths[2] + smoke.App.pndeaths[2] + smoke.App.a14deaths[2];
-    $('.panel .subtitle').show().text('Attributable deaths: children: ' + mid.toFixed(0) + ' ('+ lower.toFixed(0) + ' - ' + upper.toFixed(0) + '), adult: ' + smoke.App.adultdeaths[1].toFixed(0) + ' ('+smoke.App.adultdeaths[0].toFixed(0) + ' - ' + smoke.App.adultdeaths[2].toFixed(0) + ')');
-    $('.panel .subtitle2').show().text('Economic impact: ' + (smoke.App.adultdeaths[1]*1.7).toFixed(0) + ' (' + (smoke.App.adultdeaths[0]*1.7).toFixed(0) + ' - ' + (smoke.App.adultdeaths[2]*1.7).toFixed(0) + ') million USD');
+    $('.panel .title').show().html('Jul - Oct Mean PM<sub>2.5</sub>: ' + smoke.App.total_PM + ' \u03BCg/m<sup>3</sup>, Total OC Emissions: ' + (smoke.App.totalE['oc']*1.0e-12).toFixed(2) + ' Tg; Total BC Emissions: ' + (smoke.App.totalE['bc']*1.0e-12).toFixed(2) + ' Tg');
+    var lower = Math.round(smoke.App.endeaths[0] + smoke.App.lndeaths[0] + smoke.App.pndeaths[0] + smoke.App.a14deaths[0]); 
+    var mid = Math.round(smoke.App.endeaths[1] + smoke.App.lndeaths[1] + smoke.App.pndeaths[1] + smoke.App.a14deaths[1]);
+    var upper = Math.round(smoke.App.endeaths[2] + smoke.App.lndeaths[2] + smoke.App.pndeaths[2] + smoke.App.a14deaths[2]);
+    $('.panel .subtitle').show().text('Attributable Deaths: Adults All-cause: ' + Math.round(smoke.App.adultdeaths[1]).toLocaleString() + ' (' + Math.round(smoke.App.adultdeaths[0]).toLocaleString() + ' - ' + Math.round(smoke.App.adultdeaths[2]).toLocaleString() + ');' + ' Children Acute Lower Respiratory Infection (ALRI): ' + mid.toLocaleString() + ' ('+ lower.toLocaleString() + ' - ' + upper.toLocaleString() + ')');
+    $('.panel .subtitle2').show().text('Economic Impact: $' + Math.round(smoke.App.adultdeaths[1]*1.7).toLocaleString() + ' (' + Math.round(smoke.App.adultdeaths[0]*1.7).toLocaleString() + ' - ' + Math.round(smoke.App.adultdeaths[2]*1.7).toLocaleString() + ') million USD');
     this.drawTimeSeries();
     this.drawSourcePie();
     this.drawHealthChart();
@@ -723,7 +723,8 @@ smoke.App.prototype.drawHealthChart = function() {
            bar: { groupWidth: '75%' },
            isStacked: true,
            chartArea: {width: '60%'},
-           title: 'Mortality attributable to total PM exposure'
+           title: 'Mortality attributable to total PM exposure',
+           hAxis: {title: 'deaths'}
        };
 
     var wrapper = new google.visualization.ChartWrapper({
@@ -750,7 +751,8 @@ smoke.App.prototype.drawSourcePie = function() {
       chartType: 'PieChart',
       dataTable: summaryData,
       options: {
-        title: 'Contribution from each province'
+        title: 'Contribution from each province',
+        sliceVisibilityThreshold: 0.1
       }
     });
 
@@ -787,7 +789,8 @@ smoke.App.prototype.drawTimeSeries = function() {
       dataTable: summaryData,
       options: {
         title: 'Population weighted exposure',
-        legend: { position: 'none'}
+        legend: { position: 'none'},
+        vAxis: {title: '\u03BCg/m\u00B3'}
       }
     });
 
@@ -908,8 +911,8 @@ smoke.App.prototype.newScenario = function() {
             return {
               'strokeWeight': 2,
               'fillOpacity': 0.0,
-              'fillColor': 'orange',
-              'strokeColor': 'orange',
+              'fillColor': '#ff0000',
+              'strokeColor': '#ff0000',
               'strokeOpacity': 1.0
             };
             } else if (s > 0) {
