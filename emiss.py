@@ -148,20 +148,20 @@ def getDownscaled(emissyear, metyear, peatmask):
     print(emissyear)
     # find closest year for land-use scenarios
     if emissyear >= 2025:
-        start_landcover = ee.Image('users/karenyu/future_LULC_MarHan4')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHan5')
+        start_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2025')
+        end_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2030')
     elif emissyear >= 2020:
-        start_landcover = ee.Image('users/karenyu/future_LULC_MarHan3')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHan4')
+        start_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2020')
+        end_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2025')
     elif emissyear >= 2015: 
-        start_landcover = ee.Image('users/karenyu/future_LULC_MarHan2')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHan3')
+        start_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2015')
+        end_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2020')
     elif emissyear >= 2010: 
-        start_landcover = ee.Image('users/karenyu/future_LULC_MarHan1')
-        end_landcover = ee.Image('users/karenyu/future_LULC_MarHan2')
+        start_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2010')
+        end_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS_future/future_LULC_MarHanS_2015')
     elif emissyear >= 2005:
-        start_landcover = ee.Image('users/karenyu/marHanS2005_sin')
-        end_landcover = ee.Image('users/karenyu/marHanS2010_sin')
+        start_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS2005')
+        end_landcover = ee.Image('projects/IndonesiaPolicyTool/marHanS2010')
 
     # get the transition emissions
     transition_emissions = getTransition(start_landcover, end_landcover, peatmask, year=(metyear-2005) )
