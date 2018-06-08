@@ -6,7 +6,8 @@ import ee
 
 # The service account email address authorized by your Google contact.
 # Set up a service account as described in the README.
-EE_ACCOUNT = '313418907097-compute@developer.gserviceaccount.com'
+EE_ACCOUNT = 'smoke-policy-tool@appspot.gserviceaccount.com'
+#EE_ACCOUNT = '313418907097-compute@developer.gserviceaccount.com'
 
 # The private key associated with your service account in Privacy Enhanced
 # Email format (.pem suffix).  To convert a private key from the RSA format

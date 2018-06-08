@@ -1,6 +1,6 @@
 import ee
 
-def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, conservation):
+def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, conservation, brg, provinces, province_boundaries):
     """Gets the dry matter emissions from GFED4 and converts to oc/bc using emission factors associated with GFED4"""
 
     ds_grid = ee.Image('projects/IndonesiaPolicyTool/dsGFEDgrid')
@@ -17,6 +17,17 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
     if conservation:
         conservationmask = getConservation().reproject(crs=ds_grid.projection(), scale=ds_grid.projection().nominalScale()).eq(1)
         print(conservationmask.projection().nominalScale().getInfo())
+    if brg: 
+        brgmask = ee.Image('projects/IndonesiaPolicyTool/BRG_regridded')
+
+    for i, province in enumerate(provinces):
+        if i == 0:
+            provMask = province_boundaries.filterMetadata('NAME_1', 'equals', province).reduceToImage(['ID_0'], ee.Reducer.count())
+        else:
+            provMask = provMask.add(province_boundaries.filterMetadata('NAME_1', 'equals', province).reduceToImage(['ID_0'], ee.Reducer.count()))
+
+    if len(provinces) > 0:
+        provMask = provMask.eq(0)
 
     # get emissions based on transitions or from GFED 
     print("YEAR == ", year)
@@ -47,6 +58,12 @@ def getEmissions(scenario, year, metYear, logging, oilpalm, timber, peatlands, c
             maskedEmissions = maskedEmissions.updateMask(peatmask)
         if conservation:
             maskedEmissions = maskedEmissions.updateMask(conservationmask)
+        if brg:
+            maskedEmissions = maskedEmissions.updateMask(brgmask)
+
+        # province masking
+        if len(provinces) > 0: 
+            maskedEmissions = maskedEmissions.updateMask(provMask)
         return maskedEmissions
 
     # function to compute oc and bc emissions from dm

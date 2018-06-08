@@ -14,6 +14,7 @@ import ee               # earth engine API
 import jinja2           # templating engine
 import webapp2
 import math
+import time
 
 import emiss
 import health
@@ -32,7 +33,7 @@ class MainHandler(webapp2.RequestHandler):
   def get(self, path=''):
     """Returns the main web page, populated with EE map."""
 
-    mapIds, tokens, exposure, totalPM, provtotal, mort, totalE = GetMapData('Miriam', 'Singapore', 2006, 2006, False, False, False, False, False)
+    mapIds, tokens, exposure, totalPM, provtotal, mort, totalE = GetMapData('Miriam', 'Singapore', 2006, 2006, False, False, False, False, False, False, [])
 
     print(totalE['bc'])
 
@@ -81,7 +82,9 @@ class ExportHandler(webapp2.RequestHandler):
             'oilpalm': self.request.get('oilpalm'),
             'timber': self.request.get('timber'),
             'peatlands': self.request.get('peatlands'),
-            'conservation': self.request.get('conservation')}
+            'conservation': self.request.get('conservation'),
+            'provinces': self.request.get('provinces[]'),
+            'BRGsites': self.request.get('BRGsites')}
             )
 
 class DetailsHandler(webapp2.RequestHandler):
@@ -97,6 +100,8 @@ class DetailsHandler(webapp2.RequestHandler):
         timber = self.request.get('timber')
         peatlands = self.request.get('peatlands')
         conservation = self.request.get('conservation')
+        provinces = self.request.params.getall('provinces[]')
+        BRGsites = self.request.get('BRGsites')
 
         print('scenario', scenario)
 
@@ -108,6 +113,8 @@ class DetailsHandler(webapp2.RequestHandler):
         print 'timber = ' + timber
         print 'peatlands = ' + peatlands 
         print 'conservation = ' + conservation
+        print 'provinces = ' + ' '.join(p for p in provinces)
+        print 'brgsites = ' + BRGsites
 
         # convert to boolean
         if logging == 'true':
@@ -135,11 +142,16 @@ class DetailsHandler(webapp2.RequestHandler):
         else:
             conservation_bool = False
 
+        if BRGsites == 'true': 
+            BRGsites_bool = True
+        else:
+            BRGsites_bool = False
+
         print(logging_bool)
 
         if receptor in RECEPTORS:
 
-            mapIds, tokens, exposure, totalPM, provtotal, mort, totalE = GetMapData(scenario, receptor, metYear, emissYear, logging_bool, oilpalm_bool, timber_bool, peatlands_bool, conservation_bool)
+            mapIds, tokens, exposure, totalPM, provtotal, mort, totalE = GetMapData(scenario, receptor, metYear, emissYear, logging_bool, oilpalm_bool, timber_bool, peatlands_bool, conservation_bool, BRGsites_bool, provinces)
         else:
             mapIds  = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
             tokens = json.dumps({'error': 'Unrecognized receptor site: ' + receptor})
@@ -183,7 +195,22 @@ app = webapp2.WSGIApplication([
 #                                   Helpers.                                  #
 ###############################################################################
 
-def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber, peatlands, conservation ):
+def exportTif(image, prefix, receptor):
+    llx = 90
+    lly = -20
+    urx = 150
+    ury = 10
+    geometry = [[llx,lly], [llx,ury], [urx,ury], [urx,lly]]
+    task = ee.batch.Export.image.toCloudStorage(image, 'sens',  bucket='smoke_app_output', fileNamePrefix=prefix + '_'+receptor, region=geometry, scale=927.662423277) 
+    task.start()
+    while task.active():
+        print(task.status())
+        time.sleep(10)
+    print(task.status())
+
+    return
+
+def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber, peatlands, conservation, BRGsites, provinces):
     """Returns two lists with mapids and tokens of the different map layers"""
     # a list of ids for different layers
     mapIds = []
@@ -195,7 +222,9 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
     tokens.append(landcover_tokens)
 
     # second layer is emissions
-    emissions, total_emissions = emiss.getEmissions(scenario, emissYear, metYear, logging, oilpalm, timber, peatlands, conservation)
+    prov = getProvinceBoundaries()
+    print 'BRGsites before emiss' + str(BRGsites)
+    emissions, total_emissions = emiss.getEmissions(scenario, emissYear, metYear, logging, oilpalm, timber, peatlands, conservation, BRGsites, provinces, prov)
 
     if scenario == 'GFED4': 
         scale = 1e9 * 2.592e-6 
@@ -204,6 +233,7 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
 
     print(ee.Image(emissions.first()).bandNames().getInfo())
     emissions_display = ee.Image(ee.ImageCollection(emissions.toList(1, 8)).first()).add(ee.Image(ee.ImageCollection(emissions.toList(1,9)).first())) 
+    #exportTif(emissions_display, 'emissions', receptor)
     mapid = GetMapId(emissions_display.select('b1').add(emissions_display.select('b2')).multiply(scale), maxVal=10, maskValue=1e-6, color='FFFFFF, FFFF00, FFC100, FF7700, DE2700, 761200')
 
     mapIds.append([mapid['mapid']])
@@ -212,8 +242,10 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
     # third layer is sensitivities and pm
     sensitivities = getSensitivity(receptor, metYear)
     meansens = sensitivities.filterDate(str(metYear)+'-07-01', str(metYear)+'-11-01').mean().set('system:footprint', ee.Image(sensitivities.first()).get('system:footprint'))
+    displaysens = ee.Image(meansens).select('b1').add(meansens.select('b2')).multiply(SCALE_FACTOR*1e3*30*31)
     print(ee.Image(meansens).bandNames().getInfo())
-    mapid = GetMapId(ee.Image(meansens).select('b1').add(meansens.select('b2')).multiply(SCALE_FACTOR*1e3*30*31), maxVal=0.10, maskValue=0.001, color='FFFFFF, FE9CFF, FF00B4, CC00FF, 5F00E5, 0003AE')
+
+    mapid = GetMapId(displaysens, maxVal=0.10, maskValue=0.001, color='FFFFFF, FE9CFF, FF00B4, CC00FF, 5F00E5, 0003AE')
     mapIds.append([mapid['mapid']])
     tokens.append([mapid['token']])
     
@@ -226,19 +258,20 @@ def GetMapData(scenario, receptor, metYear, emissYear, logging, oilpalm, timber,
     # we only want map for Sept + Oct
     summer_pm = pm.filterDate(str(metYear)+'-07-01', str(metYear)+'-11-01')
 
-    totPM = summer_pm.mean().divide(ee.Image.pixelArea()).multiply(ee.Image(55.5*74*1000*1000)).set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
+    totPM = summer_pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
     annualPM = pm.mean().set('system:footprint', ee.Image(pm.first()).get('system:footprint'))
-    mapid = GetMapId(totPM, maxVal=0.05, color='FFFFFF, FE9CFF, FF00B4, CC00FF, 5F00E5, 0003AE')
+    mapid = GetMapId(totPM.divide(ee.Image.pixelArea()).multiply(ee.Image(55.5*74*1000*1000)), maxVal=0.05, color='FFFFFF, FE9CFF, FF00B4, CC00FF, 5F00E5, 0003AE')
     mapIds[2].append(mapid['mapid'])
     tokens[2].append(mapid['token'])
-    
+   
+    #exportTif(totPM.divide(ee.Image.pixelArea()), 'Peatprotect_PM', receptor)
+
     ## Compute the total Jun - Nov mean exposure at receptor
     proj = ee.Image(pm.first()).select('b1').projection()
     totalPM = computeTotal(totPM, proj)
     annual_PM = computeTotal(annualPM, proj)
 
     # get provincial totals
-    prov = getProvinceBoundaries()
     provtotal = computeRegionalTotal(totPM, prov, proj)
 
     # fourth layer is health impacts
@@ -347,12 +380,14 @@ def getMonthlyPM(sensitivities, emiss):
     prj = ee.Image(sensitivities.first()).projection()
     def aggregate_image(image):
         regridded = image.reduceRegions(collection=grid, reducer=ee.Reducer.mean().unweighted(), scale=image.projection().nominalScale())
-        b1 = regridded.reduceToImage(properties=ee.List(['b1']), reducer=ee.Reducer.mean().unweighted()).rename(['b1']).reproject(crs=prj, scale=prj.nominalScale())
-        b2 = regridded.reduceToImage(properties=ee.List(['b2']), reducer=ee.Reducer.mean().unweighted()).rename(['b2']).reproject(crs=prj, scale=prj.nominalScale())
+        b1 = regridded.reduceToImage(properties=ee.List(['b1']), reducer=ee.Reducer.mean().unweighted()).rename(['b1'])#.reproject(crs=prj, scale=prj.nominalScale())
+        b2 = regridded.reduceToImage(properties=ee.List(['b2']), reducer=ee.Reducer.mean().unweighted()).rename(['b2'])#.reproject(crs=prj, scale=prj.nominalScale())
         regridded_image = b1.addBands(b2)
         return regridded_image
 
     coarse_data = emiss.map(aggregate_image)
+
+    #exportTif(ee.Image(coarse_data.first()), 'coarse_emissions_', 'test')
     print(ee.Image(coarse_data.first()).projection().nominalScale().getInfo())
 
     # compute total emissions

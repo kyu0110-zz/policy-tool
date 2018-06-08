@@ -20,7 +20,8 @@ smoke.boot = function(eeMapId, eeToken, boundaries, totalPM, provincial, timeser
   google.load('visualization', '1.0');
   google.load('jquery', '1');
   google.load('maps', '3', {
-      other_params: 'key=AIzaSyA2nsOVX-475AWtyU0xVIIj9wZKPIzQinI&libraries=drawing',
+      other_params: 'key=AIzaSyBdyh20WfdBzci4me9wEir69CW_56WflaM&libraries=drawing',
+      //other_params: 'key=AIzaSyA2nsOVX-475AWtyU0xVIIj9wZKPIzQinI&libraries=drawing',
       callback: function(){}
   });
 
@@ -126,6 +127,11 @@ smoke.App = function(mapType, boundaries) {
 
   // layer UI: BRG sites toggle
   $('#brg').click(this.handleBRGtoggle.bind(this));
+
+  // add drawer 
+  //The drawing manager, for drawing on the Google Map.
+  //this.drawingManager = smoke.App.createDrawingManager(this.map); 
+  //this.initRegionPicker();
 
 };
 
@@ -829,7 +835,9 @@ smoke.App.prototype.newScenario = function() {
          oilpalm: $('#oilpalm').is(':checked'),
          timber: $('#timber').is(':checked'),
          peatlands: $('#peatlands').is(':checked'),
-         conservation: $('#conservation').is(':checked')
+         conservation: $('#conservation').is(':checked'),
+         provinces: $('#provinces').val(),
+         BRGsites: $('#BRGsites').is(':checked')
       },
       function(data) {
         // Set other map values
@@ -1098,14 +1106,6 @@ smoke.App.addEmissionsLegend = function(legend) {
 };
 
 
-smoke.App.addGCLegend = function(legend) {
-};
-
-
-smoke.App.addHealthLegend = function(legend) {
-};
-
-
 /** 
  * Adds a menu to the left side
  */
@@ -1125,6 +1125,93 @@ smoke.App.prototype.addUI = function(map) {
            });
 
 };
+
+///////////////////////////////////////////////////////////////////////////////
+//                        Polygon drawing                                    //
+//////////////////////////////////////////////////////////////////////////////
+/** Initializes the region picker. */
+smoke.App.prototype.initRegionPicker = function() {
+  // Respond when the user chooses to draw a polygon.
+  $('.region .draw').click(this.setDrawingModeEnabled.bind(this, true));
+
+  // Respond when the user draws a polygon on the map.
+  google.maps.event.addListener(
+      this.drawingManager, 'overlaycomplete',
+      (function(event) {
+        if (this.getDrawingModeEnabled()) {
+          this.handleNewPolygon(event.overlay);
+        } else {
+          event.overlay.setMap(null);
+        }
+      }).bind(this));
+
+  // Cancel drawing mode if the user presses escape.
+  $(document).keydown((function(event) {
+    if (event.which == 27) this.setDrawingModeEnabled(false);
+  }).bind(this));
+
+  // Respond when the user cancels polygon drawing.
+  $('.region .cancel').click(this.setDrawingModeEnabled.bind(this, false));
+
+  // Respond when the user clears the polygon.
+  $('.region .clear').click(this.clearPolygon.bind(this));
+};
+
+
+/**
+ * Returns the coordinates of the currently drawn polygon.
+ * @return {Array<Array<number>>} A list of coordinates describing
+ *     the currently drawn polygon (or null if no polygon is drawn).
+ */
+smoke.App.prototype.getPolygonCoordinates = function() {
+  var points = this.currentPolygon.getPath().getArray();
+  var twoDimensionalArray = points.map(function(point) {
+    return [point.lng(), point.lat()];
+  });
+  return twoDimensionalArray;
+};
+
+
+/**
+ * Sets whether drawing on the map is enabled.
+ * @param {boolean} enabled Whether drawing mode is enabled.
+ */
+smoke.App.prototype.setDrawingModeEnabled = function(enabled) {
+  $('.region').toggleClass('drawing', enabled);
+  var mode = enabled ? google.maps.drawing.OverlayType.POLYGON : null;
+  this.drawingManager.setOptions({drawingMode: mode});
+};
+
+
+/**
+ * Sets whether drawing on the map is enabled.
+ * @return {boolean} Whether drawing mode is enabled.
+ */
+smoke.App.prototype.getDrawingModeEnabled = function() {
+  return $('.region').hasClass('drawing');
+};
+
+
+/** Clears the current polygon from the map and enables drawing. */
+smoke.App.prototype.clearPolygon = function() {
+  this.currentPolygon.setMap(null);
+  $('.region').removeClass('selected');
+  $('.export').attr('disabled', true);
+};
+
+
+/**
+ * Stores the current polygon drawn on the map and disables drawing.
+ * @param {Object} opt_overlay The new polygon drawn on the map. If
+ *     undefined, the default polygon is treated as the new polygon.
+ */
+smoke.App.prototype.handleNewPolygon = function(opt_overlay) {
+  this.currentPolygon = opt_overlay;
+  $('.region').addClass('selected');
+  $('.export').attr('disabled', false);
+  this.setDrawingModeEnabled(false);
+};
+
 
 ///////////////////////////////////////////////////////////////////////////////
 //                        Static helpers and constants.                      //
@@ -1152,6 +1239,24 @@ smoke.App.getEeMapType = function(eeMapId, eeToken) {
   return new google.maps.ImageMapType(eeMapOptions);
 };
 
+/**
+ *  * Creates a drawing manager for the passed-in map.
+ *   * @param {google.maps.Map} map The map for which to create a drawing
+ *    *     manager.
+ *     * @return {google.maps.drawing.DrawingManager} A drawing manager for
+ *      *     the given map.
+ *       */
+smoke.App.createDrawingManager = function(map) {
+      var drawingManager = new google.maps.drawing.DrawingManager({
+              drawingControl: false,
+                  polygonOptions: {
+                            fillColor: '#ff0000',
+                                  strokeColor: '#ff0000'
+                                          }
+                });
+        drawingManager.setMap(map);
+          return drawingManager;
+};
     
 /** @type {string} The Earth Engine API URL. */
 smoke.App.EE_URL = 'https://earthengine.googleapis.com';
